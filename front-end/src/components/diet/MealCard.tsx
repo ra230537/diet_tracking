@@ -54,7 +54,7 @@ export function MealCard({ meal, draftChanges, onQuantityChange }: MealCardProps
   return (
     <>
       <Card className="overflow-hidden">
-        {/* Meal Header - distinct background for hierarchy */}
+        {/* Meal Header */}
         <CardHeader className="bg-accent/50 border-b flex flex-row items-center justify-between pb-3">
           <div>
             <CardTitle className="text-base font-semibold">{meal.name}</CardTitle>
@@ -69,10 +69,10 @@ export function MealCard({ meal, draftChanges, onQuantityChange }: MealCardProps
           </Button>
         </CardHeader>
 
-        {/* Food Items - table layout */}
+        {/* Food Items */}
         <CardContent className="p-0">
           {meal.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">
+            <p className="text-sm text-muted-foreground text-center py-8">
               Nenhum alimento nesta refeição.
             </p>
           ) : (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Search, Plus, Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -15,7 +15,7 @@ import { useAddMealItem } from "@/hooks/use-diet";
 import { toast } from "@/hooks/use-toast";
 import type { FoodItemResponse } from "@/lib/types";
 
-const emptyFoodForm = { name: "", brand: "", calories: "", protein: "", carbs: "", fat: "" };
+const emptyFoodForm = { name: "", brand: "", protein: "", carbs: "", fat: "" };
 
 interface AddFoodModalProps {
   open: boolean;
@@ -34,13 +34,20 @@ export function AddFoodModal({ open, onOpenChange, mealId }: AddFoodModalProps) 
   const addItem = useAddMealItem();
   const createFood = useCreateFood();
 
+  // Auto-calculate calories from macros
+  const computedCalories = useMemo(() => {
+    const pro = parseFloat(foodForm.protein) || 0;
+    const carb = parseFloat(foodForm.carbs) || 0;
+    const fat = parseFloat(foodForm.fat) || 0;
+    return Math.round((pro * 4 + carb * 4 + fat * 9) * 100) / 100;
+  }, [foodForm.protein, foodForm.carbs, foodForm.fat]);
+
   const handleCreateInline = () => {
-    const cal = parseFloat(foodForm.calories);
     const pro = parseFloat(foodForm.protein);
     const carb = parseFloat(foodForm.carbs);
     const fat = parseFloat(foodForm.fat);
 
-    if (!foodForm.name.trim() || [cal, pro, carb, fat].some((v) => isNaN(v) || v < 0)) {
+    if (!foodForm.name.trim() || [pro, carb, fat].some((v) => isNaN(v) || v < 0)) {
       toast({ title: "Erro", description: "Preencha todos os campos corretamente.", variant: "destructive" });
       return;
     }
@@ -48,7 +55,7 @@ export function AddFoodModal({ open, onOpenChange, mealId }: AddFoodModalProps) 
     createFood.mutate(
       {
         name: foodForm.name.trim(),
-        calories_kcal: cal,
+        calories_kcal: computedCalories,
         protein_g: pro,
         carbs_g: carb,
         fat_g: fat,
@@ -129,17 +136,21 @@ export function AddFoodModal({ open, onOpenChange, mealId }: AddFoodModalProps) 
 
           {/* Inline create food form */}
           {showCreateForm && !selectedFood && (
-            <div className="rounded-md border p-3 space-y-3">
+            <div className="rounded-xl border p-3 space-y-3">
               <p className="text-sm font-medium">Criar Novo Alimento (valores por 100g)</p>
               <div className="space-y-2">
                 <Input placeholder="Nome" value={foodForm.name} onChange={(e) => setFoodForm({ ...foodForm, name: e.target.value })} />
                 <Input placeholder="Marca (opcional)" value={foodForm.brand} onChange={(e) => setFoodForm({ ...foodForm, brand: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Input type="number" min="0" step="0.1" placeholder="Calorias (kcal)" value={foodForm.calories} onChange={(e) => setFoodForm({ ...foodForm, calories: e.target.value })} />
                 <Input type="number" min="0" step="0.1" placeholder="Proteína (g)" value={foodForm.protein} onChange={(e) => setFoodForm({ ...foodForm, protein: e.target.value })} />
                 <Input type="number" min="0" step="0.1" placeholder="Carboidratos (g)" value={foodForm.carbs} onChange={(e) => setFoodForm({ ...foodForm, carbs: e.target.value })} />
                 <Input type="number" min="0" step="0.1" placeholder="Gordura (g)" value={foodForm.fat} onChange={(e) => setFoodForm({ ...foodForm, fat: e.target.value })} />
+                <div className="flex items-center">
+                  <div className="w-full rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                    {computedCalories > 0 ? `${computedCalories} kcal` : "Calorias (auto)"}
+                  </div>
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleCreateInline} className="flex-1" disabled={createFood.isPending}>
@@ -155,7 +166,7 @@ export function AddFoodModal({ open, onOpenChange, mealId }: AddFoodModalProps) 
 
           {/* Results */}
           {!selectedFood && !showCreateForm && (
-            <div className="max-h-48 overflow-y-auto space-y-1 rounded-md border p-2">
+            <div className="max-h-48 overflow-y-auto space-y-1 rounded-xl border p-2">
               {isLoading && (
                 <div className="flex justify-center py-4">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -175,7 +186,7 @@ export function AddFoodModal({ open, onOpenChange, mealId }: AddFoodModalProps) 
                   key={food.id}
                   type="button"
                   onClick={() => setSelectedFood(food)}
-                  className="w-full text-left rounded-md px-3 py-2 text-sm hover:bg-accent transition-colors"
+                  className="w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-accent transition-colors"
                 >
                   <div className="font-medium">{food.name}</div>
                   <div className="text-xs text-muted-foreground">
@@ -188,7 +199,7 @@ export function AddFoodModal({ open, onOpenChange, mealId }: AddFoodModalProps) 
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(true)}
-                  className="w-full text-left rounded-md px-3 py-2 text-sm hover:bg-accent transition-colors text-primary"
+                  className="w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-accent transition-colors text-primary"
                 >
                   <Plus className="h-3 w-3 inline mr-1" />
                   Criar novo alimento manualmente
@@ -199,7 +210,7 @@ export function AddFoodModal({ open, onOpenChange, mealId }: AddFoodModalProps) 
 
           {/* Selected food */}
           {selectedFood && (
-            <div className="rounded-md border p-3 bg-accent/30">
+            <div className="rounded-xl border p-3 bg-accent/30">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm">{selectedFood.name}</p>

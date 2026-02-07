@@ -103,6 +103,28 @@ class DietPlan(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
+    # Tracks when the coach last applied an adjustment to this plan.
+    # Used to prevent the stagnation check from suggesting repeated increases
+    # before the user has had a chance to log new weight data.
+    last_coach_adjustment_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+
+    # Stores the anchor date (T_curr) used when the last adjustment was made.
+    last_coach_anchor_date: Mapped[date | None] = mapped_column(
+        Date, nullable=True, default=None
+    )
+
+    # Fingerprint: the W_curr and W_prev averages used for the last adjustment.
+    # If these change (new log, deleted log, edited weight), the adjustment
+    # is considered stale and a new suggestion can be made.
+    last_coach_w_curr: Mapped[float | None] = mapped_column(
+        Float, nullable=True, default=None
+    )
+    last_coach_w_prev: Mapped[float | None] = mapped_column(
+        Float, nullable=True, default=None
+    )
+
     # Relationship: a plan has many meals (e.g., Breakfast, Lunch, Dinner)
     meals: Mapped[list["Meal"]] = relationship(
         "Meal", back_populates="diet_plan", lazy="selectin",

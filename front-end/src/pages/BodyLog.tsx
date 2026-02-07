@@ -263,8 +263,10 @@ export default function BodyLog() {
     applySuggestion.mutate(
       {
         user_id: "default_user",
-        calorie_increase: stagnationData.suggested_calorie_increase ?? 0,
-        carb_increase_g: stagnationData.suggested_carb_increase_g ?? 0,
+        calorie_adjustment: stagnationData.suggested_calorie_adjustment ?? 0,
+        carb_adjustment_g: stagnationData.suggested_carb_adjustment_g ?? 0,
+        w_curr: stagnationData.current_week_avg_weight,
+        w_prev: stagnationData.previous_week_avg_weight,
       },
       {
         onSuccess: () => {
@@ -540,15 +542,20 @@ export default function BodyLog() {
                 <div className="grid grid-cols-2 gap-2 mt-3">
                   <div className="rounded-md border p-2 text-center">
                     <p className="text-xs text-muted-foreground">Meta Atual</p>
-                    <p className="font-bold">{stagnationData.new_target_calories != null ? Math.round((stagnationData.new_target_calories ?? 0) - (stagnationData.suggested_calorie_increase ?? 0)) : "—"} kcal</p>
-                    <p className="text-xs">{stagnationData.new_target_carbs != null ? Math.round((stagnationData.new_target_carbs ?? 0) - (stagnationData.suggested_carb_increase_g ?? 0)) : "—"}g carbs</p>
+                    <p className="font-bold">{stagnationData.current_calories != null ? Math.round(stagnationData.current_calories) : "—"} kcal</p>
+                    <p className="text-xs">{stagnationData.current_carbs_g != null ? Math.round(stagnationData.current_carbs_g) : "—"}g carbs</p>
                   </div>
                   <div className="rounded-md border p-2 text-center border-yellow-500/50 bg-yellow-950/20">
                     <p className="text-xs text-yellow-400">Nova Meta Sugerida</p>
-                    <p className="font-bold text-yellow-300">{stagnationData.new_target_calories != null ? Math.round(stagnationData.new_target_calories) : "—"} kcal</p>
+                    <p className="font-bold text-yellow-300">{stagnationData.suggested_calories != null ? Math.round(stagnationData.suggested_calories) : "—"} kcal</p>
                     <p className="text-xs text-yellow-400">
-                      {stagnationData.new_target_carbs != null ? Math.round(stagnationData.new_target_carbs) : "—"}g carbs
-                      <span className="ml-1">(+{stagnationData.suggested_carb_increase_g?.toFixed(0)}g)</span>
+                      {stagnationData.suggested_carbs_g != null ? Math.round(stagnationData.suggested_carbs_g) : "—"}g carbs
+                      {stagnationData.suggested_carb_adjustment_g != null && (
+                        <span className="ml-1">
+                          ({stagnationData.suggested_carb_adjustment_g >= 0 ? "+" : ""}
+                          {stagnationData.suggested_carb_adjustment_g.toFixed(0)}g)
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>

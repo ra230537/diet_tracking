@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Database, Upload, Search, Loader2, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ import { toast } from "@/hooks/use-toast";
 
 const PAGE_SIZE = 20;
 
-const emptyFoodForm = { name: "", brand: "", calories: "", protein: "", carbs: "", fat: "" };
+const emptyFoodForm = { name: "", brand: "", protein: "", carbs: "", fat: "" };
 
 export default function FoodAdmin() {
   const [search, setSearch] = useState("");
@@ -37,8 +37,15 @@ export default function FoodAdmin() {
   const importTaco = useImportTaco();
   const createFood = useCreateFood();
 
+  // Auto-calculate calories from macros
+  const computedCalories = useMemo(() => {
+    const pro = parseFloat(foodForm.protein) || 0;
+    const carb = parseFloat(foodForm.carbs) || 0;
+    const fat = parseFloat(foodForm.fat) || 0;
+    return Math.round((pro * 4 + carb * 4 + fat * 9) * 100) / 100;
+  }, [foodForm.protein, foodForm.carbs, foodForm.fat]);
+
   const handleCreateFood = () => {
-    const cal = parseFloat(foodForm.calories);
     const pro = parseFloat(foodForm.protein);
     const carb = parseFloat(foodForm.carbs);
     const fat = parseFloat(foodForm.fat);
@@ -47,7 +54,7 @@ export default function FoodAdmin() {
       toast({ title: "Erro", description: "Nome é obrigatório.", variant: "destructive" });
       return;
     }
-    if ([cal, pro, carb, fat].some((v) => isNaN(v) || v < 0)) {
+    if ([pro, carb, fat].some((v) => isNaN(v) || v < 0)) {
       toast({ title: "Erro", description: "Os valores nutricionais devem ser números positivos.", variant: "destructive" });
       return;
     }
@@ -55,7 +62,7 @@ export default function FoodAdmin() {
     createFood.mutate(
       {
         name: foodForm.name.trim(),
-        calories_kcal: cal,
+        calories_kcal: computedCalories,
         protein_g: pro,
         carbs_g: carb,
         fat_g: fat,
@@ -249,7 +256,7 @@ export default function FoodAdmin() {
           <DialogHeader>
             <DialogTitle>Criar Alimento</DialogTitle>
             <DialogDescription>
-              Informe os valores nutricionais por 100g.
+              Informe os valores nutricionais por 100g. As calorias são calculadas automaticamente.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -270,17 +277,6 @@ export default function FoodAdmin() {
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Calorias (kcal/100g)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  placeholder="165"
-                  value={foodForm.calories}
-                  onChange={(e) => setFoodForm({ ...foodForm, calories: e.target.value })}
-                />
-              </div>
               <div className="space-y-2">
                 <Label>Proteína (g/100g)</Label>
                 <Input
@@ -313,6 +309,12 @@ export default function FoodAdmin() {
                   value={foodForm.fat}
                   onChange={(e) => setFoodForm({ ...foodForm, fat: e.target.value })}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Calorias (auto)</Label>
+                <div className="flex h-9 w-full items-center rounded-md border bg-muted/50 px-3 text-sm text-muted-foreground">
+                  {computedCalories > 0 ? `${computedCalories} kcal` : "—"}
+                </div>
               </div>
             </div>
             <Button onClick={handleCreateFood} className="w-full" disabled={createFood.isPending}>

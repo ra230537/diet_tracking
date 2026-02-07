@@ -174,22 +174,55 @@ export interface StagnationCheckRequest {
   user_id: string;
 }
 
+export type AnalysisState = "weight_loss" | "slow_gain" | "optimal" | "high_velocity";
+
 export interface StagnationResult {
   current_week_avg_weight: number;
   previous_week_avg_weight: number;
   weight_change_kg: number;
+  anchor_date: string | null;
+  anchor_weight_kg: number | null;
+
+  // Time-normalized rate
+  weekly_rate: number;
+  monthly_projection: number;
+  weeks_elapsed: number;
+  analysis_state: AnalysisState;
+
+  // Stop-condition flags
+  suggest_cutting: boolean;
+  cutting_reasons: string[];
+  current_body_fat_percent: number | null;
+  waist_change_cm: number | null;
+  arm_change_cm: number | null;
+
+  // Verdict
   is_stagnating: boolean;
   message: string;
-  suggested_carb_increase_g: number | null;
-  suggested_calorie_increase: number | null;
+
+  // Calorie/Carb adjustment (can be positive or negative)
+  suggested_calorie_adjustment: number | null;
+  suggested_carb_adjustment_g: number | null;
+
+  // Before vs After comparison
+  current_carbs_g: number | null;
+  current_carbs_per_kg: number | null;
+  suggested_carbs_g: number | null;
+  suggested_carbs_per_kg: number | null;
+  current_calories: number | null;
+  suggested_calories: number | null;
+
+  // New targets
   new_target_calories: number | null;
   new_target_carbs: number | null;
 }
 
 export interface ApplySuggestionRequest {
   user_id: string;
-  calorie_increase: number;
-  carb_increase_g: number;
+  calorie_adjustment: number;
+  carb_adjustment_g: number;
+  w_curr: number;
+  w_prev: number;
 }
 
 export interface MessageResponse {

@@ -64,6 +64,26 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
         logger.info("✅ Database tables created/verified successfully")
 
+        # Migrations: add columns that create_all won't add to existing tables
+        from sqlalchemy import text
+        await conn.execute(text(
+            "ALTER TABLE diet_plans "
+            "ADD COLUMN IF NOT EXISTS last_coach_adjustment_at TIMESTAMPTZ DEFAULT NULL"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE diet_plans "
+            "ADD COLUMN IF NOT EXISTS last_coach_anchor_date DATE DEFAULT NULL"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE diet_plans "
+            "ADD COLUMN IF NOT EXISTS last_coach_w_curr FLOAT DEFAULT NULL"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE diet_plans "
+            "ADD COLUMN IF NOT EXISTS last_coach_w_prev FLOAT DEFAULT NULL"
+        ))
+        logger.info("✅ Schema migrations applied")
+
     yield  # Application is running — handle requests
 
     # ----- SHUTDOWN -----

@@ -24,10 +24,13 @@ class FoodItemCreate(BaseModel):
     """
     Schema for creating a new food item.
     All nutritional values must be provided per 100 grams.
+    
+    If calories_kcal is not provided (or is 0), it will be automatically
+    calculated from macros: (protein * 4) + (carbs * 4) + (fat * 9).
     """
     name: str = Field(..., min_length=1, max_length=255, description="Name of the food")
     calories_kcal: float = Field(
-        ..., ge=0, description="Calories per 100g"
+        default=0, ge=0, description="Calories per 100g (auto-calculated from macros if 0 or omitted)"
     )
     protein_g: float = Field(
         ..., ge=0, description="Protein in grams per 100g"
@@ -41,6 +44,15 @@ class FoodItemCreate(BaseModel):
     brand: str | None = Field(
         default=None, max_length=255, description="Brand name (optional)"
     )
+
+    @model_validator(mode="after")
+    def compute_calories_from_macros(self) -> "FoodItemCreate":
+        """If calories not provided or zero, derive from macros."""
+        if self.calories_kcal == 0:
+            self.calories_kcal = round(
+                (self.protein_g * 4) + (self.carbs_g * 4) + (self.fat_g * 9), 2
+            )
+        return self
 
 
 class FoodItemResponse(BaseModel):
@@ -345,27 +357,58 @@ class StagnationCheckRequest(BaseModel):
 
 class StagnationResult(BaseModel):
     """
-    Result of the stagnation analysis.
-    
-    If is_stagnating is True, the suggestion fields will contain
-    recommended increases to break through the plateau.
+    Result of the Floating Anchor weight analysis with Calories-First strategy.
+
+    Uses weekly rate (kg/week) to classify progress into four states:
+    weight_loss, slow_gain, optimal, high_velocity.
+
+    Monthly target: 0.5 – 1.5 kg/month (0.125 – 0.375 kg/week).
+    Also checks stop conditions: waist-vs-arm growth and body fat ceiling.
     """
     # Analysis data
-    current_week_avg_weight: float = Field(description="Average weight of the last 7 days")
-    previous_week_avg_weight: float = Field(description="Average weight of days 8-14")
-    weight_change_kg: float = Field(description="Difference between current and previous week")
+    current_week_avg_weight: float = Field(description="Average weight of the current 7-day window")
+    previous_week_avg_weight: float = Field(description="Average weight of the previous 7-day window")
+    weight_change_kg: float = Field(description="Absolute weight difference between windows")
+
+    # Anchor date info
+    anchor_date: str | None = Field(default=None, description="Most recent body log date used as reference")
+    anchor_weight_kg: float | None = Field(default=None, description="Weight on the anchor date")
+
+    # Time-normalized rate
+    weekly_rate: float = Field(default=0.0, description="Normalized weight change in kg/week")
+    monthly_projection: float = Field(default=0.0, description="Projected monthly gain (weekly_rate * 4)")
+    weeks_elapsed: float = Field(default=1.0, description="Weeks between the two analysis windows")
+    analysis_state: str = Field(
+        default="optimal",
+        description="One of: weight_loss, slow_gain, optimal, high_velocity"
+    )
+
+    # Stop-condition flags
+    suggest_cutting: bool = Field(default=False, description="True if a stop condition was triggered")
+    cutting_reasons: list[str] = Field(default_factory=list, description="List of reasons to recommend cutting")
+    current_body_fat_percent: float | None = Field(default=None, description="Latest body fat % if available")
+    waist_change_cm: float | None = Field(default=None, description="Waist circumference change (cm)")
+    arm_change_cm: float | None = Field(default=None, description="Arm circumference change (cm)")
 
     # Verdict
-    is_stagnating: bool = Field(description="True if weight gain <= 0.1 kg")
+    is_stagnating: bool = Field(description="True if adjustment is recommended")
     message: str = Field(description="Human-readable explanation of the result")
 
-    # Suggestion (only populated if stagnating)
-    suggested_carb_increase_g: float | None = Field(
-        default=None, description="Recommended carb increase in grams"
+    # Calorie/Carb adjustment (can be positive or negative)
+    suggested_calorie_adjustment: float | None = Field(
+        default=None, description="Recommended calorie adjustment (+ or −)"
     )
-    suggested_calorie_increase: float | None = Field(
-        default=None, description="Recommended calorie increase (carb increase * 4)"
+    suggested_carb_adjustment_g: float | None = Field(
+        default=None, description="Recommended carb adjustment in grams (+ or −)"
     )
+
+    # Before vs After comparison data
+    current_carbs_g: float | None = Field(default=None, description="Current daily carb target (g)")
+    current_carbs_per_kg: float | None = Field(default=None, description="Current carbs in g/kg")
+    suggested_carbs_g: float | None = Field(default=None, description="Suggested daily carb target (g)")
+    suggested_carbs_per_kg: float | None = Field(default=None, description="Suggested carbs in g/kg")
+    current_calories: float | None = Field(default=None, description="Current daily calorie target")
+    suggested_calories: float | None = Field(default=None, description="Suggested daily calorie target")
 
     # New targets if suggestion is applied
     new_target_calories: float | None = None
@@ -373,10 +416,14 @@ class StagnationResult(BaseModel):
 
 
 class ApplySuggestionRequest(BaseModel):
-    """Request body to apply a stagnation suggestion to the active diet plan."""
+    """Request body to apply a coach suggestion (increase or decrease) to the active diet plan."""
     user_id: str = Field(default="default_user")
-    calorie_increase: float = Field(..., gt=0, description="Calories to add to target")
-    carb_increase_g: float = Field(..., gt=0, description="Carbs (g) to add to target")
+    calorie_adjustment: float = Field(..., description="Calories to add/subtract from target (can be negative)")
+    carb_adjustment_g: float = Field(..., description="Carbs (g) to add/subtract from target (can be negative)")
+    # Fingerprint: the weight averages used in the analysis that produced this suggestion.
+    # Stored in the plan so the coach can detect when new/different data arrives.
+    w_curr: float = Field(..., description="Current window average weight used in the analysis")
+    w_prev: float = Field(..., description="Previous window average weight used in the analysis")
 
 
 # ============================================================
