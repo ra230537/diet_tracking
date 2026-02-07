@@ -1,0 +1,42 @@
+# ============================================================
+# Docker Compose for the Bulking Control App
+# Spins up two services: the FastAPI app and a PostgreSQL DB.
+# ============================================================
+
+services:
+  # ----- PostgreSQL Database -----
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: bulking_user
+      POSTGRES_PASSWORD: bulking_pass
+      POSTGRES_DB: bulking_db
+    ports:
+      - "5432:5432"
+    volumes:
+      # Persist database data across container restarts
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bulking_user -d bulking_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ----- FastAPI Application -----
+  app:
+    build: .
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://bulking_user:bulking_pass@db:5432/bulking_db
+    volumes:
+      # Mount source code for live-reload during development
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
