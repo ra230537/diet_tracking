@@ -36,27 +36,30 @@ interface BodyLogFormData {
   date: string;
   weight_kg: string;
   skinfold_chest: string;
-  skinfold_abdomen: string;
+  skinfold_abdominal: string;
   skinfold_thigh: string;
   skinfold_triceps: string;
   skinfold_subscapular: string;
   skinfold_suprailiac: string;
-  skinfold_midaxillary: string;
+  skinfold_axillary: string;
   bio_body_fat_percent: string;
   bio_muscle_mass_kg: string;
   circ_neck: string;
-  circ_chest: string;
+  circ_shoulder: string;
+  circ_chest_relaxed: string;
+  circ_arm_relaxed_right: string;
+  circ_arm_relaxed_left: string;
+  circ_arm_contracted_right: string;
+  circ_arm_contracted_left: string;
+  circ_forearm_right: string;
+  circ_forearm_left: string;
   circ_waist: string;
   circ_abdomen: string;
-  circ_hip: string;
-  circ_right_arm: string;
-  circ_left_arm: string;
-  circ_right_forearm: string;
-  circ_left_forearm: string;
-  circ_right_thigh: string;
-  circ_left_thigh: string;
-  circ_right_calf: string;
-  circ_left_calf: string;
+  circ_hips: string;
+  circ_thigh_proximal_right: string;
+  circ_thigh_proximal_left: string;
+  circ_calf_right: string;
+  circ_calf_left: string;
 }
 
 function toNum(v: string): number | null {
@@ -115,25 +118,28 @@ export default function BodyLog() {
   const [editBf, setEditBf] = useState("");
   const [editMuscleMass, setEditMuscleMass] = useState("");
   const [editSkinfoldChest, setEditSkinfoldChest] = useState("");
-  const [editSkinfoldAbdomen, setEditSkinfoldAbdomen] = useState("");
+  const [editSkinfoldAbdominal, setEditSkinfoldAbdominal] = useState("");
   const [editSkinfoldThigh, setEditSkinfoldThigh] = useState("");
   const [editSkinfoldTriceps, setEditSkinfoldTriceps] = useState("");
   const [editSkinfoldSubscapular, setEditSkinfoldSubscapular] = useState("");
   const [editSkinfoldSuprailiac, setEditSkinfoldSuprailiac] = useState("");
-  const [editSkinfoldMidaxillary, setEditSkinfoldMidaxillary] = useState("");
+  const [editSkinfoldAxillary, setEditSkinfoldAxillary] = useState("");
   const [editCircNeck, setEditCircNeck] = useState("");
-  const [editCircChest, setEditCircChest] = useState("");
+  const [editCircShoulder, setEditCircShoulder] = useState("");
+  const [editCircChestRelaxed, setEditCircChestRelaxed] = useState("");
+  const [editCircArmRelaxedRight, setEditCircArmRelaxedRight] = useState("");
+  const [editCircArmRelaxedLeft, setEditCircArmRelaxedLeft] = useState("");
+  const [editCircArmContractedRight, setEditCircArmContractedRight] = useState("");
+  const [editCircArmContractedLeft, setEditCircArmContractedLeft] = useState("");
+  const [editCircForearmRight, setEditCircForearmRight] = useState("");
+  const [editCircForearmLeft, setEditCircForearmLeft] = useState("");
   const [editCircWaist, setEditCircWaist] = useState("");
   const [editCircAbdomen, setEditCircAbdomen] = useState("");
-  const [editCircHip, setEditCircHip] = useState("");
-  const [editCircRightArm, setEditCircRightArm] = useState("");
-  const [editCircLeftArm, setEditCircLeftArm] = useState("");
-  const [editCircRightForearm, setEditCircRightForearm] = useState("");
-  const [editCircLeftForearm, setEditCircLeftForearm] = useState("");
-  const [editCircRightThigh, setEditCircRightThigh] = useState("");
-  const [editCircLeftThigh, setEditCircLeftThigh] = useState("");
-  const [editCircRightCalf, setEditCircRightCalf] = useState("");
-  const [editCircLeftCalf, setEditCircLeftCalf] = useState("");
+  const [editCircHips, setEditCircHips] = useState("");
+  const [editCircThighProximalRight, setEditCircThighProximalRight] = useState("");
+  const [editCircThighProximalLeft, setEditCircThighProximalLeft] = useState("");
+  const [editCircCalfRight, setEditCircCalfRight] = useState("");
+  const [editCircCalfLeft, setEditCircCalfLeft] = useState("");
 
   // Coach dialog state
   const [coachDialogOpen, setCoachDialogOpen] = useState(false);
@@ -148,14 +154,17 @@ export default function BodyLog() {
     defaultValues: {
       date: today,
       weight_kg: "",
-      skinfold_chest: "", skinfold_abdomen: "", skinfold_thigh: "",
+      skinfold_chest: "", skinfold_abdominal: "", skinfold_thigh: "",
       skinfold_triceps: "", skinfold_subscapular: "", skinfold_suprailiac: "",
-      skinfold_midaxillary: "", bio_body_fat_percent: "", bio_muscle_mass_kg: "",
-      circ_neck: "", circ_chest: "", circ_waist: "", circ_abdomen: "",
-      circ_hip: "", circ_right_arm: "", circ_left_arm: "",
-      circ_right_forearm: "", circ_left_forearm: "",
-      circ_right_thigh: "", circ_left_thigh: "",
-      circ_right_calf: "", circ_left_calf: "",
+      skinfold_axillary: "", bio_body_fat_percent: "", bio_muscle_mass_kg: "",
+      circ_neck: "", circ_shoulder: "", circ_chest_relaxed: "",
+      circ_arm_relaxed_right: "", circ_arm_relaxed_left: "",
+      circ_arm_contracted_right: "", circ_arm_contracted_left: "",
+      circ_forearm_right: "", circ_forearm_left: "",
+      circ_waist: "", circ_abdomen: "",
+      circ_hips: "",
+      circ_thigh_proximal_right: "", circ_thigh_proximal_left: "",
+      circ_calf_right: "", circ_calf_left: "",
     },
   });
 
@@ -171,27 +180,30 @@ export default function BodyLog() {
       user_id: "default_user",
       weight_kg: weightNum,
       skinfold_chest: toNum(data.skinfold_chest),
-      skinfold_abdomen: toNum(data.skinfold_abdomen),
+      skinfold_abdominal: toNum(data.skinfold_abdominal),
       skinfold_thigh: toNum(data.skinfold_thigh),
       skinfold_triceps: toNum(data.skinfold_triceps),
       skinfold_subscapular: toNum(data.skinfold_subscapular),
       skinfold_suprailiac: toNum(data.skinfold_suprailiac),
-      skinfold_midaxillary: toNum(data.skinfold_midaxillary),
+      skinfold_axillary: toNum(data.skinfold_axillary),
       bio_body_fat_percent: toNum(data.bio_body_fat_percent),
       bio_muscle_mass_kg: toNum(data.bio_muscle_mass_kg),
       circ_neck: toNum(data.circ_neck),
-      circ_chest: toNum(data.circ_chest),
+      circ_shoulder: toNum(data.circ_shoulder),
+      circ_chest_relaxed: toNum(data.circ_chest_relaxed),
+      circ_arm_relaxed_right: toNum(data.circ_arm_relaxed_right),
+      circ_arm_relaxed_left: toNum(data.circ_arm_relaxed_left),
+      circ_arm_contracted_right: toNum(data.circ_arm_contracted_right),
+      circ_arm_contracted_left: toNum(data.circ_arm_contracted_left),
+      circ_forearm_right: toNum(data.circ_forearm_right),
+      circ_forearm_left: toNum(data.circ_forearm_left),
       circ_waist: toNum(data.circ_waist),
       circ_abdomen: toNum(data.circ_abdomen),
-      circ_hip: toNum(data.circ_hip),
-      circ_right_arm: toNum(data.circ_right_arm),
-      circ_left_arm: toNum(data.circ_left_arm),
-      circ_right_forearm: toNum(data.circ_right_forearm),
-      circ_left_forearm: toNum(data.circ_left_forearm),
-      circ_right_thigh: toNum(data.circ_right_thigh),
-      circ_left_thigh: toNum(data.circ_left_thigh),
-      circ_right_calf: toNum(data.circ_right_calf),
-      circ_left_calf: toNum(data.circ_left_calf),
+      circ_hips: toNum(data.circ_hips),
+      circ_thigh_proximal_right: toNum(data.circ_thigh_proximal_right),
+      circ_thigh_proximal_left: toNum(data.circ_thigh_proximal_left),
+      circ_calf_right: toNum(data.circ_calf_right),
+      circ_calf_left: toNum(data.circ_calf_left),
     };
 
     createLog.mutate(payload, {
@@ -239,25 +251,28 @@ export default function BodyLog() {
     setEditBf(numToStr(log.bio_body_fat_percent));
     setEditMuscleMass(numToStr(log.bio_muscle_mass_kg));
     setEditSkinfoldChest(numToStr(log.skinfold_chest));
-    setEditSkinfoldAbdomen(numToStr(log.skinfold_abdomen));
+    setEditSkinfoldAbdominal(numToStr(log.skinfold_abdominal));
     setEditSkinfoldThigh(numToStr(log.skinfold_thigh));
     setEditSkinfoldTriceps(numToStr(log.skinfold_triceps));
     setEditSkinfoldSubscapular(numToStr(log.skinfold_subscapular));
     setEditSkinfoldSuprailiac(numToStr(log.skinfold_suprailiac));
-    setEditSkinfoldMidaxillary(numToStr(log.skinfold_midaxillary));
+    setEditSkinfoldAxillary(numToStr(log.skinfold_axillary));
     setEditCircNeck(numToStr(log.circ_neck));
-    setEditCircChest(numToStr(log.circ_chest));
+    setEditCircShoulder(numToStr(log.circ_shoulder));
+    setEditCircChestRelaxed(numToStr(log.circ_chest_relaxed));
+    setEditCircArmRelaxedRight(numToStr(log.circ_arm_relaxed_right));
+    setEditCircArmRelaxedLeft(numToStr(log.circ_arm_relaxed_left));
+    setEditCircArmContractedRight(numToStr(log.circ_arm_contracted_right));
+    setEditCircArmContractedLeft(numToStr(log.circ_arm_contracted_left));
+    setEditCircForearmRight(numToStr(log.circ_forearm_right));
+    setEditCircForearmLeft(numToStr(log.circ_forearm_left));
     setEditCircWaist(numToStr(log.circ_waist));
     setEditCircAbdomen(numToStr(log.circ_abdomen));
-    setEditCircHip(numToStr(log.circ_hip));
-    setEditCircRightArm(numToStr(log.circ_right_arm));
-    setEditCircLeftArm(numToStr(log.circ_left_arm));
-    setEditCircRightForearm(numToStr(log.circ_right_forearm));
-    setEditCircLeftForearm(numToStr(log.circ_left_forearm));
-    setEditCircRightThigh(numToStr(log.circ_right_thigh));
-    setEditCircLeftThigh(numToStr(log.circ_left_thigh));
-    setEditCircRightCalf(numToStr(log.circ_right_calf));
-    setEditCircLeftCalf(numToStr(log.circ_left_calf));
+    setEditCircHips(numToStr(log.circ_hips));
+    setEditCircThighProximalRight(numToStr(log.circ_thigh_proximal_right));
+    setEditCircThighProximalLeft(numToStr(log.circ_thigh_proximal_left));
+    setEditCircCalfRight(numToStr(log.circ_calf_right));
+    setEditCircCalfLeft(numToStr(log.circ_calf_left));
     setEditOpen(true);
   };
 
@@ -278,25 +293,28 @@ export default function BodyLog() {
           bio_body_fat_percent: toNum(editBf),
           bio_muscle_mass_kg: toNum(editMuscleMass),
           skinfold_chest: toNum(editSkinfoldChest),
-          skinfold_abdomen: toNum(editSkinfoldAbdomen),
+          skinfold_abdominal: toNum(editSkinfoldAbdominal),
           skinfold_thigh: toNum(editSkinfoldThigh),
           skinfold_triceps: toNum(editSkinfoldTriceps),
           skinfold_subscapular: toNum(editSkinfoldSubscapular),
           skinfold_suprailiac: toNum(editSkinfoldSuprailiac),
-          skinfold_midaxillary: toNum(editSkinfoldMidaxillary),
+          skinfold_axillary: toNum(editSkinfoldAxillary),
           circ_neck: toNum(editCircNeck),
-          circ_chest: toNum(editCircChest),
+          circ_shoulder: toNum(editCircShoulder),
+          circ_chest_relaxed: toNum(editCircChestRelaxed),
+          circ_arm_relaxed_right: toNum(editCircArmRelaxedRight),
+          circ_arm_relaxed_left: toNum(editCircArmRelaxedLeft),
+          circ_arm_contracted_right: toNum(editCircArmContractedRight),
+          circ_arm_contracted_left: toNum(editCircArmContractedLeft),
+          circ_forearm_right: toNum(editCircForearmRight),
+          circ_forearm_left: toNum(editCircForearmLeft),
           circ_waist: toNum(editCircWaist),
           circ_abdomen: toNum(editCircAbdomen),
-          circ_hip: toNum(editCircHip),
-          circ_right_arm: toNum(editCircRightArm),
-          circ_left_arm: toNum(editCircLeftArm),
-          circ_right_forearm: toNum(editCircRightForearm),
-          circ_left_forearm: toNum(editCircLeftForearm),
-          circ_right_thigh: toNum(editCircRightThigh),
-          circ_left_thigh: toNum(editCircLeftThigh),
-          circ_right_calf: toNum(editCircRightCalf),
-          circ_left_calf: toNum(editCircLeftCalf),
+          circ_hips: toNum(editCircHips),
+          circ_thigh_proximal_right: toNum(editCircThighProximalRight),
+          circ_thigh_proximal_left: toNum(editCircThighProximalLeft),
+          circ_calf_right: toNum(editCircCalfRight),
+          circ_calf_left: toNum(editCircCalfLeft),
         },
       },
       {
@@ -408,12 +426,12 @@ export default function BodyLog() {
                   <AccordionContent>
                     <CardContent className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 pt-2">
                       <FormField label="Peitoral" id="skinfold_chest" register={register} error={errors.skinfold_chest?.message} />
-                      <FormField label="Abdômen" id="skinfold_abdomen" register={register} error={errors.skinfold_abdomen?.message} />
+                      <FormField label="Abdômen" id="skinfold_abdominal" register={register} error={errors.skinfold_abdominal?.message} />
                       <FormField label="Coxa" id="skinfold_thigh" register={register} error={errors.skinfold_thigh?.message} />
                       <FormField label="Tríceps" id="skinfold_triceps" register={register} error={errors.skinfold_triceps?.message} />
                       <FormField label="Subescapular" id="skinfold_subscapular" register={register} error={errors.skinfold_subscapular?.message} />
                       <FormField label="Suprailíaca" id="skinfold_suprailiac" register={register} error={errors.skinfold_suprailiac?.message} />
-                      <FormField label="Axilar Média" id="skinfold_midaxillary" register={register} error={errors.skinfold_midaxillary?.message} />
+                      <FormField label="Axilar Média" id="skinfold_axillary" register={register} error={errors.skinfold_axillary?.message} />
                     </CardContent>
                   </AccordionContent>
                 </Card>
@@ -447,18 +465,21 @@ export default function BodyLog() {
                   <AccordionContent>
                     <CardContent className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 pt-2">
                       <FormField label="Pescoço" id="circ_neck" register={register} error={errors.circ_neck?.message} unit="cm" />
-                      <FormField label="Peitoral" id="circ_chest" register={register} error={errors.circ_chest?.message} unit="cm" />
+                      <FormField label="Ombro" id="circ_shoulder" register={register} error={errors.circ_shoulder?.message} unit="cm" />
+                      <FormField label="Peitoral" id="circ_chest_relaxed" register={register} error={errors.circ_chest_relaxed?.message} unit="cm" />
+                      <FormField label="Braço Relaxado Dir." id="circ_arm_relaxed_right" register={register} error={errors.circ_arm_relaxed_right?.message} unit="cm" />
+                      <FormField label="Braço Relaxado Esq." id="circ_arm_relaxed_left" register={register} error={errors.circ_arm_relaxed_left?.message} unit="cm" />
+                      <FormField label="Braço Contraído Dir." id="circ_arm_contracted_right" register={register} error={errors.circ_arm_contracted_right?.message} unit="cm" />
+                      <FormField label="Braço Contraído Esq." id="circ_arm_contracted_left" register={register} error={errors.circ_arm_contracted_left?.message} unit="cm" />
+                      <FormField label="Antebraço Dir." id="circ_forearm_right" register={register} error={errors.circ_forearm_right?.message} unit="cm" />
+                      <FormField label="Antebraço Esq." id="circ_forearm_left" register={register} error={errors.circ_forearm_left?.message} unit="cm" />
                       <FormField label="Cintura" id="circ_waist" register={register} error={errors.circ_waist?.message} unit="cm" />
                       <FormField label="Abdômen" id="circ_abdomen" register={register} error={errors.circ_abdomen?.message} unit="cm" />
-                      <FormField label="Quadril" id="circ_hip" register={register} error={errors.circ_hip?.message} unit="cm" />
-                      <FormField label="Braço Dir." id="circ_right_arm" register={register} error={errors.circ_right_arm?.message} unit="cm" />
-                      <FormField label="Braço Esq." id="circ_left_arm" register={register} error={errors.circ_left_arm?.message} unit="cm" />
-                      <FormField label="Antebraço Dir." id="circ_right_forearm" register={register} error={errors.circ_right_forearm?.message} unit="cm" />
-                      <FormField label="Antebraço Esq." id="circ_left_forearm" register={register} error={errors.circ_left_forearm?.message} unit="cm" />
-                      <FormField label="Coxa Dir." id="circ_right_thigh" register={register} error={errors.circ_right_thigh?.message} unit="cm" />
-                      <FormField label="Coxa Esq." id="circ_left_thigh" register={register} error={errors.circ_left_thigh?.message} unit="cm" />
-                      <FormField label="Panturrilha Dir." id="circ_right_calf" register={register} error={errors.circ_right_calf?.message} unit="cm" />
-                      <FormField label="Panturrilha Esq." id="circ_left_calf" register={register} error={errors.circ_left_calf?.message} unit="cm" />
+                      <FormField label="Quadril" id="circ_hips" register={register} error={errors.circ_hips?.message} unit="cm" />
+                      <FormField label="Coxa Dir." id="circ_thigh_proximal_right" register={register} error={errors.circ_thigh_proximal_right?.message} unit="cm" />
+                      <FormField label="Coxa Esq." id="circ_thigh_proximal_left" register={register} error={errors.circ_thigh_proximal_left?.message} unit="cm" />
+                      <FormField label="Panturrilha Dir." id="circ_calf_right" register={register} error={errors.circ_calf_right?.message} unit="cm" />
+                      <FormField label="Panturrilha Esq." id="circ_calf_left" register={register} error={errors.circ_calf_left?.message} unit="cm" />
                     </CardContent>
                   </AccordionContent>
                 </Card>
@@ -598,7 +619,7 @@ export default function BodyLog() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Abdômen</Label>
-                      <Input type="number" step="0.1" min="0" value={editSkinfoldAbdomen} onChange={(e) => setEditSkinfoldAbdomen(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                      <Input type="number" step="0.1" min="0" value={editSkinfoldAbdominal} onChange={(e) => setEditSkinfoldAbdominal(e.target.value)} placeholder="—" className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Coxa</Label>
@@ -618,7 +639,7 @@ export default function BodyLog() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Axilar Média</Label>
-                      <Input type="number" step="0.1" min="0" value={editSkinfoldMidaxillary} onChange={(e) => setEditSkinfoldMidaxillary(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                      <Input type="number" step="0.1" min="0" value={editSkinfoldAxillary} onChange={(e) => setEditSkinfoldAxillary(e.target.value)} placeholder="—" className="h-8 text-sm" />
                     </div>
                   </div>
                 </AccordionContent>
@@ -634,8 +655,36 @@ export default function BodyLog() {
                       <Input type="number" step="0.1" min="0" value={editCircNeck} onChange={(e) => setEditCircNeck(e.target.value)} placeholder="—" className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
+                      <Label className="text-xs">Ombro</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircShoulder} onChange={(e) => setEditCircShoulder(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
                       <Label className="text-xs">Peitoral</Label>
-                      <Input type="number" step="0.1" min="0" value={editCircChest} onChange={(e) => setEditCircChest(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                      <Input type="number" step="0.1" min="0" value={editCircChestRelaxed} onChange={(e) => setEditCircChestRelaxed(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Braço Relaxado Dir.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircArmRelaxedRight} onChange={(e) => setEditCircArmRelaxedRight(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Braço Relaxado Esq.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircArmRelaxedLeft} onChange={(e) => setEditCircArmRelaxedLeft(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Braço Contraído Dir.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircArmContractedRight} onChange={(e) => setEditCircArmContractedRight(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Braço Contraído Esq.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircArmContractedLeft} onChange={(e) => setEditCircArmContractedLeft(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Antebraço Dir.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircForearmRight} onChange={(e) => setEditCircForearmRight(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Antebraço Esq.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircForearmLeft} onChange={(e) => setEditCircForearmLeft(e.target.value)} placeholder="—" className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Cintura</Label>
@@ -647,39 +696,23 @@ export default function BodyLog() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Quadril</Label>
-                      <Input type="number" step="0.1" min="0" value={editCircHip} onChange={(e) => setEditCircHip(e.target.value)} placeholder="—" className="h-8 text-sm" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Braço Dir.</Label>
-                      <Input type="number" step="0.1" min="0" value={editCircRightArm} onChange={(e) => setEditCircRightArm(e.target.value)} placeholder="—" className="h-8 text-sm" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Braço Esq.</Label>
-                      <Input type="number" step="0.1" min="0" value={editCircLeftArm} onChange={(e) => setEditCircLeftArm(e.target.value)} placeholder="—" className="h-8 text-sm" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Antebraço Dir.</Label>
-                      <Input type="number" step="0.1" min="0" value={editCircRightForearm} onChange={(e) => setEditCircRightForearm(e.target.value)} placeholder="—" className="h-8 text-sm" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Antebraço Esq.</Label>
-                      <Input type="number" step="0.1" min="0" value={editCircLeftForearm} onChange={(e) => setEditCircLeftForearm(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                      <Input type="number" step="0.1" min="0" value={editCircHips} onChange={(e) => setEditCircHips(e.target.value)} placeholder="—" className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Coxa Dir.</Label>
-                      <Input type="number" step="0.1" min="0" value={editCircRightThigh} onChange={(e) => setEditCircRightThigh(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                      <Input type="number" step="0.1" min="0" value={editCircThighProximalRight} onChange={(e) => setEditCircThighProximalRight(e.target.value)} placeholder="—" className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Coxa Esq.</Label>
-                      <Input type="number" step="0.1" min="0" value={editCircLeftThigh} onChange={(e) => setEditCircLeftThigh(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                      <Input type="number" step="0.1" min="0" value={editCircThighProximalLeft} onChange={(e) => setEditCircThighProximalLeft(e.target.value)} placeholder="—" className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Panturrilha Dir.</Label>
-                      <Input type="number" step="0.1" min="0" value={editCircRightCalf} onChange={(e) => setEditCircRightCalf(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                      <Input type="number" step="0.1" min="0" value={editCircCalfRight} onChange={(e) => setEditCircCalfRight(e.target.value)} placeholder="—" className="h-8 text-sm" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Panturrilha Esq.</Label>
-                      <Input type="number" step="0.1" min="0" value={editCircLeftCalf} onChange={(e) => setEditCircLeftCalf(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                      <Input type="number" step="0.1" min="0" value={editCircCalfLeft} onChange={(e) => setEditCircCalfLeft(e.target.value)} placeholder="—" className="h-8 text-sm" />
                     </div>
                   </div>
                 </AccordionContent>

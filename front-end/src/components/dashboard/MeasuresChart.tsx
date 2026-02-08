@@ -18,14 +18,14 @@ interface MeasuresChartProps {
 
 export function MeasuresChart({ bodyLogs }: MeasuresChartProps) {
   const data = bodyLogs
-    .filter((log) => log.circ_waist || log.circ_right_arm)
+    .filter((log) => log.circ_waist || log.circ_arm_relaxed_right)
     .map((log) => ({
       date: new Date(log.date).toLocaleDateString("pt-BR", {
         day: "2-digit",
         month: "2-digit",
       }),
       cintura: log.circ_waist ?? 0,
-      braco: log.circ_right_arm ?? 0,
+      braco: log.circ_arm_relaxed_right ?? 0,
     }))
     .reverse();
 

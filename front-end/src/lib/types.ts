@@ -114,25 +114,28 @@ export interface BodyLogCreate {
   bio_body_fat_percent?: number | null;
   bio_muscle_mass_kg?: number | null;
   skinfold_chest?: number | null;
-  skinfold_abdomen?: number | null;
+  skinfold_axillary?: number | null;
   skinfold_thigh?: number | null;
   skinfold_triceps?: number | null;
   skinfold_subscapular?: number | null;
   skinfold_suprailiac?: number | null;
-  skinfold_midaxillary?: number | null;
+  skinfold_abdominal?: number | null;
   circ_neck?: number | null;
-  circ_chest?: number | null;
+  circ_shoulder?: number | null;
+  circ_chest_relaxed?: number | null;
+  circ_arm_relaxed_right?: number | null;
+  circ_arm_relaxed_left?: number | null;
+  circ_arm_contracted_right?: number | null;
+  circ_arm_contracted_left?: number | null;
+  circ_forearm_right?: number | null;
+  circ_forearm_left?: number | null;
   circ_waist?: number | null;
   circ_abdomen?: number | null;
-  circ_hip?: number | null;
-  circ_right_arm?: number | null;
-  circ_left_arm?: number | null;
-  circ_right_forearm?: number | null;
-  circ_left_forearm?: number | null;
-  circ_right_thigh?: number | null;
-  circ_left_thigh?: number | null;
-  circ_right_calf?: number | null;
-  circ_left_calf?: number | null;
+  circ_hips?: number | null;
+  circ_thigh_proximal_right?: number | null;
+  circ_thigh_proximal_left?: number | null;
+  circ_calf_right?: number | null;
+  circ_calf_left?: number | null;
 }
 
 export interface BodyLogResponse extends BodyLogCreate {
