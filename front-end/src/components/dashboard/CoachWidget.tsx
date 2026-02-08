@@ -241,27 +241,36 @@ export function CoachWidget() {
             <AdjustmentCard d={d} isReduction={isReduction} />
           )}
 
-          {/* Apply button */}
+          {/* Apply / Dismiss buttons */}
           {d.is_stagnating && hasAdjustment && (
-            <Button
-              size="sm"
-              onClick={handleApply}
-              disabled={applySuggestion.isPending}
-              className={`w-full text-white ${
-                isReduction
-                  ? "bg-orange-600 hover:bg-orange-700"
-                  : state === "weight_loss"
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-yellow-600 hover:bg-yellow-700"
-              }`}
-            >
-              {applySuggestion.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Check className="h-4 w-4 mr-2" />
-              )}
-              {isReduction ? "Aceitar Redução" : "Aceitar Sugestão"}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={handleApply}
+                disabled={applySuggestion.isPending}
+                className={`flex-1 text-white ${
+                  isReduction
+                    ? "bg-orange-600 hover:bg-orange-700"
+                    : state === "weight_loss"
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-yellow-600 hover:bg-yellow-700"
+                }`}
+              >
+                {applySuggestion.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Check className="h-4 w-4 mr-2" />
+                )}
+                {isReduction ? "Aceitar Redução" : "Aceitar Sugestão"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => stagnation.reset()}
+              >
+                Dispensar
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>

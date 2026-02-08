@@ -299,8 +299,8 @@ def _classify_weekly_rate(
         # Case 1A: Weight Loss — aggressive surplus
         return (
             "weight_loss",
-            f"⚠️ Ganho muito lento (Taxa: {weekly_rate:.3f} kg/semana). "
-            f"Adicionando +500 kcal (+125g de carboidrato) para atingir a meta mensal.",
+            f"⚠️ Perda de peso detectada (Taxa: {weekly_rate:.3f} kg/semana). "
+            f"Adicionando +500 kcal (+125g de carboidrato) para reverter a perda e atingir a meta mensal.",
             500.0,
             125.0,
         )

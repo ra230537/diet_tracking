@@ -113,6 +113,27 @@ export default function BodyLog() {
   const [editDate, setEditDate] = useState("");
   const [editWeight, setEditWeight] = useState("");
   const [editBf, setEditBf] = useState("");
+  const [editMuscleMass, setEditMuscleMass] = useState("");
+  const [editSkinfoldChest, setEditSkinfoldChest] = useState("");
+  const [editSkinfoldAbdomen, setEditSkinfoldAbdomen] = useState("");
+  const [editSkinfoldThigh, setEditSkinfoldThigh] = useState("");
+  const [editSkinfoldTriceps, setEditSkinfoldTriceps] = useState("");
+  const [editSkinfoldSubscapular, setEditSkinfoldSubscapular] = useState("");
+  const [editSkinfoldSuprailiac, setEditSkinfoldSuprailiac] = useState("");
+  const [editSkinfoldMidaxillary, setEditSkinfoldMidaxillary] = useState("");
+  const [editCircNeck, setEditCircNeck] = useState("");
+  const [editCircChest, setEditCircChest] = useState("");
+  const [editCircWaist, setEditCircWaist] = useState("");
+  const [editCircAbdomen, setEditCircAbdomen] = useState("");
+  const [editCircHip, setEditCircHip] = useState("");
+  const [editCircRightArm, setEditCircRightArm] = useState("");
+  const [editCircLeftArm, setEditCircLeftArm] = useState("");
+  const [editCircRightForearm, setEditCircRightForearm] = useState("");
+  const [editCircLeftForearm, setEditCircLeftForearm] = useState("");
+  const [editCircRightThigh, setEditCircRightThigh] = useState("");
+  const [editCircLeftThigh, setEditCircLeftThigh] = useState("");
+  const [editCircRightCalf, setEditCircRightCalf] = useState("");
+  const [editCircLeftCalf, setEditCircLeftCalf] = useState("");
 
   // Coach dialog state
   const [coachDialogOpen, setCoachDialogOpen] = useState(false);
@@ -209,11 +230,34 @@ export default function BodyLog() {
     });
   };
 
+  const numToStr = (v: number | null | undefined): string => v != null ? String(v) : "";
+
   const handleEditOpen = (log: BodyLogResponse) => {
     setEditingLog(log);
     setEditDate(log.date);
     setEditWeight(String(log.weight_kg));
-    setEditBf(log.bio_body_fat_percent != null ? String(log.bio_body_fat_percent) : "");
+    setEditBf(numToStr(log.bio_body_fat_percent));
+    setEditMuscleMass(numToStr(log.bio_muscle_mass_kg));
+    setEditSkinfoldChest(numToStr(log.skinfold_chest));
+    setEditSkinfoldAbdomen(numToStr(log.skinfold_abdomen));
+    setEditSkinfoldThigh(numToStr(log.skinfold_thigh));
+    setEditSkinfoldTriceps(numToStr(log.skinfold_triceps));
+    setEditSkinfoldSubscapular(numToStr(log.skinfold_subscapular));
+    setEditSkinfoldSuprailiac(numToStr(log.skinfold_suprailiac));
+    setEditSkinfoldMidaxillary(numToStr(log.skinfold_midaxillary));
+    setEditCircNeck(numToStr(log.circ_neck));
+    setEditCircChest(numToStr(log.circ_chest));
+    setEditCircWaist(numToStr(log.circ_waist));
+    setEditCircAbdomen(numToStr(log.circ_abdomen));
+    setEditCircHip(numToStr(log.circ_hip));
+    setEditCircRightArm(numToStr(log.circ_right_arm));
+    setEditCircLeftArm(numToStr(log.circ_left_arm));
+    setEditCircRightForearm(numToStr(log.circ_right_forearm));
+    setEditCircLeftForearm(numToStr(log.circ_left_forearm));
+    setEditCircRightThigh(numToStr(log.circ_right_thigh));
+    setEditCircLeftThigh(numToStr(log.circ_left_thigh));
+    setEditCircRightCalf(numToStr(log.circ_right_calf));
+    setEditCircLeftCalf(numToStr(log.circ_left_calf));
     setEditOpen(true);
   };
 
@@ -231,7 +275,28 @@ export default function BodyLog() {
         data: {
           date: editDate,
           weight_kg: w,
-          bio_body_fat_percent: editBf ? parseFloat(editBf) : null,
+          bio_body_fat_percent: toNum(editBf),
+          bio_muscle_mass_kg: toNum(editMuscleMass),
+          skinfold_chest: toNum(editSkinfoldChest),
+          skinfold_abdomen: toNum(editSkinfoldAbdomen),
+          skinfold_thigh: toNum(editSkinfoldThigh),
+          skinfold_triceps: toNum(editSkinfoldTriceps),
+          skinfold_subscapular: toNum(editSkinfoldSubscapular),
+          skinfold_suprailiac: toNum(editSkinfoldSuprailiac),
+          skinfold_midaxillary: toNum(editSkinfoldMidaxillary),
+          circ_neck: toNum(editCircNeck),
+          circ_chest: toNum(editCircChest),
+          circ_waist: toNum(editCircWaist),
+          circ_abdomen: toNum(editCircAbdomen),
+          circ_hip: toNum(editCircHip),
+          circ_right_arm: toNum(editCircRightArm),
+          circ_left_arm: toNum(editCircLeftArm),
+          circ_right_forearm: toNum(editCircRightForearm),
+          circ_left_forearm: toNum(editCircLeftForearm),
+          circ_right_thigh: toNum(editCircRightThigh),
+          circ_left_thigh: toNum(editCircLeftThigh),
+          circ_right_calf: toNum(editCircRightCalf),
+          circ_left_calf: toNum(editCircLeftCalf),
         },
       },
       {
@@ -486,38 +551,141 @@ export default function BodyLog() {
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Registro</DialogTitle>
             <DialogDescription>Corrija os dados do registro corporal.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Data</Label>
-              <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+            {/* Main fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Peso (kg)</Label>
+                <Input type="number" step="0.1" min="0" value={editWeight} onChange={(e) => setEditWeight(e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Peso (kg)</Label>
-              <Input
-                type="number"
-                step="0.1"
-                min="0"
-                value={editWeight}
-                onChange={(e) => setEditWeight(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>% Gordura (opcional)</Label>
-              <Input
-                type="number"
-                step="0.1"
-                min="0"
-                max="100"
-                value={editBf}
-                onChange={(e) => setEditBf(e.target.value)}
-                placeholder="—"
-              />
-            </div>
+
+            <Accordion type="multiple">
+              {/* Bioimpedance */}
+              <AccordionItem value="bio">
+                <AccordionTrigger className="text-sm font-medium py-2">Bioimpedância</AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div className="space-y-1">
+                      <Label className="text-xs">% Gordura</Label>
+                      <Input type="number" step="0.1" min="0" max="100" value={editBf} onChange={(e) => setEditBf(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Massa Muscular (kg)</Label>
+                      <Input type="number" step="0.1" min="0" value={editMuscleMass} onChange={(e) => setEditMuscleMass(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Skinfolds */}
+              <AccordionItem value="skinfolds">
+                <AccordionTrigger className="text-sm font-medium py-2">Dobras Cutâneas (mm)</AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Peitoral</Label>
+                      <Input type="number" step="0.1" min="0" value={editSkinfoldChest} onChange={(e) => setEditSkinfoldChest(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Abdômen</Label>
+                      <Input type="number" step="0.1" min="0" value={editSkinfoldAbdomen} onChange={(e) => setEditSkinfoldAbdomen(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Coxa</Label>
+                      <Input type="number" step="0.1" min="0" value={editSkinfoldThigh} onChange={(e) => setEditSkinfoldThigh(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Tríceps</Label>
+                      <Input type="number" step="0.1" min="0" value={editSkinfoldTriceps} onChange={(e) => setEditSkinfoldTriceps(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Subescapular</Label>
+                      <Input type="number" step="0.1" min="0" value={editSkinfoldSubscapular} onChange={(e) => setEditSkinfoldSubscapular(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Suprailíaca</Label>
+                      <Input type="number" step="0.1" min="0" value={editSkinfoldSuprailiac} onChange={(e) => setEditSkinfoldSuprailiac(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Axilar Média</Label>
+                      <Input type="number" step="0.1" min="0" value={editSkinfoldMidaxillary} onChange={(e) => setEditSkinfoldMidaxillary(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Circumferences */}
+              <AccordionItem value="circumferences">
+                <AccordionTrigger className="text-sm font-medium py-2">Circunferências (cm)</AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Pescoço</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircNeck} onChange={(e) => setEditCircNeck(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Peitoral</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircChest} onChange={(e) => setEditCircChest(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Cintura</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircWaist} onChange={(e) => setEditCircWaist(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Abdômen</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircAbdomen} onChange={(e) => setEditCircAbdomen(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Quadril</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircHip} onChange={(e) => setEditCircHip(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Braço Dir.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircRightArm} onChange={(e) => setEditCircRightArm(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Braço Esq.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircLeftArm} onChange={(e) => setEditCircLeftArm(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Antebraço Dir.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircRightForearm} onChange={(e) => setEditCircRightForearm(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Antebraço Esq.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircLeftForearm} onChange={(e) => setEditCircLeftForearm(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Coxa Dir.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircRightThigh} onChange={(e) => setEditCircRightThigh(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Coxa Esq.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircLeftThigh} onChange={(e) => setEditCircLeftThigh(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Panturrilha Dir.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircRightCalf} onChange={(e) => setEditCircRightCalf(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Panturrilha Esq.</Label>
+                      <Input type="number" step="0.1" min="0" value={editCircLeftCalf} onChange={(e) => setEditCircLeftCalf(e.target.value)} placeholder="—" className="h-8 text-sm" />
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+
             <Button onClick={handleEditSave} className="w-full" disabled={updateLog.isPending}>
               {updateLog.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Salvar Alterações
@@ -530,9 +698,19 @@ export default function BodyLog() {
       <Dialog open={coachDialogOpen} onOpenChange={setCoachDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-yellow-500">Estagnação Detectada!</DialogTitle>
+            <DialogTitle className={stagnationData?.analysis_state === "high_velocity" ? "text-orange-400" : "text-yellow-500"}>
+              {stagnationData?.analysis_state === "high_velocity"
+                ? "Ganho Acelerado Detectado!"
+                : stagnationData?.analysis_state === "weight_loss"
+                  ? "Perda de Peso Detectada!"
+                  : "Ajuste Sugerido!"}
+            </DialogTitle>
             <DialogDescription>
-              Você não ganhou peso significativo nas últimas 2 semanas. O Coach sugere aumentar sua ingestão.
+              {stagnationData?.analysis_state === "high_velocity"
+                ? "Você está ganhando peso rápido demais. O Coach sugere reduzir sua ingestão."
+                : stagnationData?.analysis_state === "weight_loss"
+                  ? "Você está perdendo peso. O Coach sugere aumentar sua ingestão."
+                  : "Seu ganho de peso está abaixo da meta. O Coach sugere aumentar sua ingestão."}
             </DialogDescription>
           </DialogHeader>
           {stagnationData && (
