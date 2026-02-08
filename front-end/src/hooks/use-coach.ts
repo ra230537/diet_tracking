@@ -1,6 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/axios";
-import type { StagnationResult, ApplySuggestionRequest, DietPlanResponse } from "@/lib/types";
+import type {
+  StagnationResult,
+  ApplySuggestionRequest,
+  DismissSuggestionRequest,
+  DietPlanResponse,
+  MessageResponse,
+} from "@/lib/types";
 
 export function useCheckStagnation() {
   return useMutation<StagnationResult, Error, { user_id: string }>({
@@ -22,6 +28,15 @@ export function useApplySuggestion() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["diet-current"] });
+    },
+  });
+}
+
+export function useDismissSuggestion() {
+  return useMutation<MessageResponse, Error, DismissSuggestionRequest>({
+    mutationFn: async (payload) => {
+      const { data } = await api.post("/coach/dismiss-suggestion", payload);
+      return data;
     },
   });
 }

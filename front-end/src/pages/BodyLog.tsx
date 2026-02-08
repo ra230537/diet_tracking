@@ -28,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCreateBodyLog, useBodyLogs, useUpdateBodyLog, useDeleteBodyLog } from "@/hooks/use-body-logs";
-import { useCheckStagnation, useApplySuggestion } from "@/hooks/use-coach";
+import { useCheckStagnation, useApplySuggestion, useDismissSuggestion } from "@/hooks/use-coach";
 import { toast } from "@/hooks/use-toast";
 import type { BodyLogResponse, StagnationResult } from "@/lib/types";
 
@@ -108,6 +108,7 @@ export default function BodyLog() {
   const deleteLog = useDeleteBodyLog();
   const checkStagnation = useCheckStagnation();
   const applySuggestion = useApplySuggestion();
+  const dismissSuggestion = useDismissSuggestion();
   const { data: logs, isLoading: logsLoading } = useBodyLogs("default_user", undefined, undefined, 0, 100);
   const today = new Date().toISOString().split("T")[0];
 
@@ -780,7 +781,34 @@ export default function BodyLog() {
                   {applySuggestion.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                   Aceitar Ajuste
                 </Button>
-                <Button variant="outline" onClick={() => { setCoachDialogOpen(false); setStagnationData(null); }}>
+                <Button
+                  variant="outline"
+                  disabled={dismissSuggestion.isPending}
+                  onClick={() => {
+                    if (!stagnationData) {
+                      setCoachDialogOpen(false);
+                      return;
+                    }
+                    dismissSuggestion.mutate(
+                      {
+                        user_id: "default_user",
+                        w_curr: stagnationData.current_week_avg_weight,
+                        w_prev: stagnationData.previous_week_avg_weight,
+                      },
+                      {
+                        onSuccess: () => {
+                          setCoachDialogOpen(false);
+                          setStagnationData(null);
+                        },
+                        onError: () => {
+                          setCoachDialogOpen(false);
+                          setStagnationData(null);
+                        },
+                      }
+                    );
+                  }}
+                >
+                  {dismissSuggestion.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                   Dispensar
                 </Button>
               </div>

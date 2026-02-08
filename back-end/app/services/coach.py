@@ -418,6 +418,57 @@ def _empty_suggestion_fields() -> dict:
     }
 
 
+async def dismiss_suggestion(
+    db: AsyncSession,
+    user_id: str,
+    w_curr: float,
+    w_prev: float,
+) -> None:
+    """
+    Dismiss a coach suggestion without changing the diet plan targets.
+
+    Records the weight fingerprint (w_curr, w_prev) so that
+    check_stagnation recognises this data set as already handled
+    and won't re-suggest until new body-log data arrives.
+
+    Args:
+        db: Async database session
+        user_id: The user dismissing the suggestion
+        w_curr: Current window average weight from the analysis
+        w_prev: Previous window average weight from the analysis
+
+    Raises:
+        ValueError: If no active diet plan is found
+    """
+    stmt = (
+        select(DietPlan)
+        .where(DietPlan.user_id == user_id)
+        .where(DietPlan.is_active == True)
+    )
+    result = await db.execute(stmt)
+    plan = result.scalar_one_or_none()
+
+    if not plan:
+        raise ValueError(
+            f"No active diet plan found for user '{user_id}'. "
+            "Please create a diet plan first."
+        )
+
+    # Save the fingerprint (same mechanism as apply_suggestion)
+    # but do NOT touch target_calories / target_carbs.
+    plan.last_coach_adjustment_at = datetime.now(timezone.utc)
+    plan.last_coach_w_curr = round(w_curr, 2)
+    plan.last_coach_w_prev = round(w_prev, 2)
+
+    await db.commit()
+
+    logger.info(
+        f"Dismissed coach suggestion for user '{user_id}': "
+        f"fingerprint W_curr={w_curr:.2f}, W_prev={w_prev:.2f} "
+        f"(targets unchanged)"
+    )
+
+
 async def apply_suggestion(
     db: AsyncSession,
     user_id: str,

@@ -228,6 +228,12 @@ export interface ApplySuggestionRequest {
   w_prev: number;
 }
 
+export interface DismissSuggestionRequest {
+  user_id: string;
+  w_curr: number;
+  w_prev: number;
+}
+
 export interface MessageResponse {
   message: string;
   detail?: string;

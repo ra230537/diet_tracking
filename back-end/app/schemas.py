@@ -434,6 +434,13 @@ class ApplySuggestionRequest(BaseModel):
     w_prev: float = Field(..., description="Previous window average weight used in the analysis")
 
 
+class DismissSuggestionRequest(BaseModel):
+    """Request body to dismiss a coach suggestion without changing diet targets."""
+    user_id: str = Field(default="default_user")
+    w_curr: float = Field(..., description="Current window average weight used in the analysis")
+    w_prev: float = Field(..., description="Previous window average weight used in the analysis")
+
+
 # ============================================================
 # DASHBOARD / STATS SCHEMAS
 # ============================================================

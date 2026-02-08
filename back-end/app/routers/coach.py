@@ -18,10 +18,12 @@ from app.core.database import get_db
 from app.schemas import (
     ApplySuggestionRequest,
     DietPlanResponse,
+    DismissSuggestionRequest,
+    MessageResponse,
     StagnationCheckRequest,
     StagnationResult,
 )
-from app.services.coach import apply_suggestion, check_stagnation
+from app.services.coach import apply_suggestion, check_stagnation, dismiss_suggestion
 
 logger = logging.getLogger(__name__)
 
@@ -92,5 +94,36 @@ async def apply_suggestion_endpoint(
             w_prev=request.w_prev,
         )
         return updated_plan
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/dismiss-suggestion", response_model=MessageResponse)
+async def dismiss_suggestion_endpoint(
+    request: DismissSuggestionRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Dismiss a coach suggestion without changing diet targets.
+
+    Records the weight fingerprint so the coach won't re-suggest
+    the same adjustment until new body-log data arrives.
+
+    Typical flow:
+      1. Call POST /coach/check-stagnation → get suggestion
+      2. User decides to ignore it
+      3. Call POST /coach/dismiss-suggestion → suppress until new data
+    """
+    try:
+        await dismiss_suggestion(
+            db=db,
+            user_id=request.user_id,
+            w_curr=request.w_curr,
+            w_prev=request.w_prev,
+        )
+        return MessageResponse(
+            message="Sugestão dispensada.",
+            detail="A sugestão não será exibida novamente até que novos dados de peso sejam registrados.",
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

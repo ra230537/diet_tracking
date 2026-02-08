@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useCheckStagnation, useApplySuggestion } from "@/hooks/use-coach";
+import { useCheckStagnation, useApplySuggestion, useDismissSuggestion } from "@/hooks/use-coach";
 import { toast } from "@/hooks/use-toast";
 import type { AnalysisState } from "@/lib/types";
 
@@ -65,6 +65,7 @@ const METER_DISPLAY_MAX = 2.5; // max value shown on the meter
 export function CoachWidget() {
   const stagnation = useCheckStagnation();
   const applySuggestion = useApplySuggestion();
+  const dismissSuggestion = useDismissSuggestion();
 
   useEffect(() => {
     stagnation.mutate({ user_id: "default_user" });
@@ -93,6 +94,33 @@ export function CoachWidget() {
           toast({
             title: "Erro",
             description: "Não foi possível aplicar a sugestão.",
+            variant: "destructive",
+          });
+        },
+      }
+    );
+  };
+
+  const handleDismiss = () => {
+    if (!stagnation.data) return;
+    dismissSuggestion.mutate(
+      {
+        user_id: "default_user",
+        w_curr: stagnation.data.current_week_avg_weight,
+        w_prev: stagnation.data.previous_week_avg_weight,
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Sugestão dispensada",
+            description: "Não será exibida novamente até novos dados de peso.",
+          });
+          stagnation.mutate({ user_id: "default_user" });
+        },
+        onError: () => {
+          toast({
+            title: "Erro",
+            description: "Não foi possível dispensar a sugestão.",
             variant: "destructive",
           });
         },
@@ -266,8 +294,12 @@ export function CoachWidget() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => stagnation.reset()}
+                onClick={handleDismiss}
+                disabled={dismissSuggestion.isPending}
               >
+                {dismissSuggestion.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
                 Dispensar
               </Button>
             </div>
