@@ -113,6 +113,14 @@ class MealCreate(BaseModel):
     )
 
 
+class MealRename(BaseModel):
+    """Schema for renaming an existing meal."""
+    name: str = Field(
+        ..., min_length=1, max_length=255,
+        description="New name for the meal"
+    )
+
+
 class MealItemCreate(BaseModel):
     """
     Schema for adding a food item to a meal.

@@ -4,11 +4,13 @@ Diet Plan Router
 Endpoints for managing diet plans, meals, and meal items.
 
 Endpoints:
-  POST /diet/plans              - Create a new diet plan
-  GET  /diet/current            - Get the full current diet plan with calculated macros
-  POST /diet/plans/{id}/meals   - Add a meal to a plan
-  POST /diet/meals/{id}/add_item - Add a food item to a meal
-  DELETE /diet/meal-items/{id}  - Remove a food item from a meal
+  POST   /diet/plans              - Create a new diet plan
+  GET    /diet/current            - Get the full current diet plan with calculated macros
+  POST   /diet/plans/{id}/meals   - Add a meal to a plan
+  PATCH  /diet/meals/{id}         - Rename a meal
+  DELETE /diet/meals/{id}         - Delete a meal and all its items
+  POST   /diet/meals/{id}/add_item - Add a food item to a meal
+  DELETE /diet/meal-items/{id}    - Remove a food item from a meal
 """
 
 import logging
@@ -29,6 +31,7 @@ from app.schemas import (
     MealItemCreate,
     MealItemResponse,
     MealItemUpdate,
+    MealRename,
     MealResponse,
     MessageResponse,
 )
@@ -158,6 +161,134 @@ async def add_meal_to_plan(
         total_protein=0.0,
         total_carbs=0.0,
         total_fat=0.0,
+    )
+
+
+@router.patch("/meals/{meal_id}", response_model=MealResponse)
+async def rename_meal(
+    meal_id: int,
+    payload: MealRename,
+    user_id: str = "default_user",
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Rename an existing meal within the user's active diet plan.
+
+    Verifies that the meal belongs to the authenticated user's active plan
+    before applying the update.
+
+    Example:
+      PATCH /diet/meals/3
+      { "name": "Post-workout Shake" }
+    """
+    # Fetch the meal with its parent plan loaded
+    stmt = (
+        select(Meal)
+        .where(Meal.id == meal_id)
+        .options(selectinload(Meal.diet_plan), selectinload(Meal.items).selectinload(MealItem.food_item))
+    )
+    result = await db.execute(stmt)
+    meal = result.scalar_one_or_none()
+
+    if not meal:
+        raise HTTPException(status_code=404, detail=f"Meal with ID {meal_id} not found.")
+
+    # Verify ownership: meal must belong to this user's active plan
+    if meal.diet_plan.user_id != user_id or not meal.diet_plan.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="This meal does not belong to your active diet plan."
+        )
+
+    old_name = meal.name
+    meal.name = payload.name
+    await db.commit()
+    await db.refresh(meal)
+
+    logger.info(f"Renamed meal ID {meal_id} from '{old_name}' to '{payload.name}'")
+
+    # Build response with totals
+    items_response = []
+    total_cal = total_prot = total_carbs = total_fat = 0.0
+    for item in meal.items:
+        qty_factor = item.quantity_grams / 100
+        cal = round(qty_factor * item.food_item.calories_kcal, 2)
+        prot = round(qty_factor * item.food_item.protein_g, 2)
+        carbs = round(qty_factor * item.food_item.carbs_g, 2)
+        fat = round(qty_factor * item.food_item.fat_g, 2)
+        total_cal += cal
+        total_prot += prot
+        total_carbs += carbs
+        total_fat += fat
+        items_response.append(MealItemResponse(
+            id=item.id,
+            food_item_id=item.food_item.id,
+            food_item_name=item.food_item.name,
+            quantity_grams=item.quantity_grams,
+            calculated_calories=cal,
+            calculated_protein=prot,
+            calculated_carbs=carbs,
+            calculated_fat=fat,
+        ))
+
+    return MealResponse(
+        id=meal.id,
+        name=meal.name,
+        order_index=meal.order_index,
+        items=items_response,
+        total_calories=round(total_cal, 2),
+        total_protein=round(total_prot, 2),
+        total_carbs=round(total_carbs, 2),
+        total_fat=round(total_fat, 2),
+    )
+
+
+@router.delete("/meals/{meal_id}", response_model=MessageResponse)
+async def delete_meal(
+    meal_id: int,
+    user_id: str = "default_user",
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete a meal and all its associated meal items (cascade).
+
+    Verifies that the meal belongs to the authenticated user's active plan
+    before deleting.
+
+    The SQLAlchemy relationship cascade="all, delete-orphan" on Meal.items
+    ensures all MealItems are automatically removed.
+
+    Example:
+      DELETE /diet/meals/3?user_id=default_user
+    """
+    # Fetch the meal with its parent plan loaded
+    stmt = (
+        select(Meal)
+        .where(Meal.id == meal_id)
+        .options(selectinload(Meal.diet_plan))
+    )
+    result = await db.execute(stmt)
+    meal = result.scalar_one_or_none()
+
+    if not meal:
+        raise HTTPException(status_code=404, detail=f"Meal with ID {meal_id} not found.")
+
+    # Verify ownership: meal must belong to this user's active plan
+    if meal.diet_plan.user_id != user_id or not meal.diet_plan.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="This meal does not belong to your active diet plan."
+        )
+
+    meal_name = meal.name
+    await db.delete(meal)
+    await db.commit()
+
+    logger.info(f"Deleted meal '{meal_name}' (ID {meal_id}) and all its items")
+
+    return MessageResponse(
+        message="Meal deleted successfully.",
+        detail=f"Removed meal '{meal_name}' (ID {meal_id}) and all associated items."
     )
 
 

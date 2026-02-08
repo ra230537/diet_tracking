@@ -115,3 +115,32 @@ export function useUpdateMealItem() {
     },
   });
 }
+
+export function useRenameMeal() {
+  const queryClient = useQueryClient();
+
+  return useMutation<MealResponse, Error, { mealId: number; name: string }>({
+    mutationFn: async ({ mealId, name }) => {
+      const { data } = await api.patch(`/diet/meals/${mealId}`, { name });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["diet-current"] });
+    },
+  });
+}
+
+export function useDeleteMeal() {
+  const queryClient = useQueryClient();
+
+  return useMutation<MessageResponse, Error, number>({
+    mutationFn: async (mealId) => {
+      const { data } = await api.delete(`/diet/meals/${mealId}`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["diet-current"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
+  });
+}
