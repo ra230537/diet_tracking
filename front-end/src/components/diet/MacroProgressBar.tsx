@@ -7,6 +7,8 @@ interface MacroProgressBarProps {
   target: number;
   unit: string;
   colorClass?: string;
+  /** If provided, shows actual g/kg value next to the label. null = no weight available, show "–" */
+  perKgActual?: number | null;
 }
 
 export function MacroProgressBar({
@@ -15,6 +17,7 @@ export function MacroProgressBar({
   target,
   unit,
   colorClass = "bg-primary",
+  perKgActual,
 }: MacroProgressBarProps) {
   const percentage = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
   const isOver = actual > target;
@@ -22,7 +25,14 @@ export function MacroProgressBar({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{label}</span>
+          {perKgActual !== undefined && (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {perKgActual !== null ? `${perKgActual.toFixed(1)} g/kg` : "–"}
+            </span>
+          )}
+        </div>
         <span className={cn("tabular-nums", isOver && "text-red-400")}>
           {Math.round(actual)} / {Math.round(target)} {unit}
         </span>

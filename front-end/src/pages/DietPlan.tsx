@@ -724,7 +724,14 @@ export default function DietPlan() {
       {/* Macro targets - with Edit Targets button */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Metas do Dia</CardTitle>
+          <div>
+            <CardTitle className="text-base">Metas do Dia</CardTitle>
+            {latestWeight && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Baseado em {latestWeight.toFixed(1)} kg
+              </p>
+            )}
+          </div>
           <Button variant="ghost" size="sm" onClick={openEditTargets}>
             <Pencil className="h-3.5 w-3.5 mr-1" />
             Editar Metas
@@ -737,6 +744,7 @@ export default function DietPlan() {
             target={plan.target_calories}
             unit="kcal"
             colorClass="bg-orange-500"
+            perKgActual={latestWeight ? displayTotals.calories / latestWeight : null}
           />
           <MacroProgressBar
             label="Proteína"
@@ -744,6 +752,7 @@ export default function DietPlan() {
             target={plan.target_protein}
             unit="g"
             colorClass="bg-red-500"
+            perKgActual={latestWeight ? displayTotals.protein / latestWeight : null}
           />
           <MacroProgressBar
             label="Carboidratos"
@@ -751,6 +760,7 @@ export default function DietPlan() {
             target={plan.target_carbs}
             unit="g"
             colorClass="bg-blue-500"
+            perKgActual={latestWeight ? displayTotals.carbs / latestWeight : null}
           />
           <MacroProgressBar
             label="Gordura"
@@ -758,6 +768,7 @@ export default function DietPlan() {
             target={plan.target_fat}
             unit="g"
             colorClass="bg-yellow-500"
+            perKgActual={latestWeight ? displayTotals.fat / latestWeight : null}
           />
         </CardContent>
       </Card>
@@ -848,34 +859,62 @@ export default function DietPlan() {
           </div>
 
           {/* Variation content */}
-          {sortedVariations.map((v) => (
-            <TabsContent key={v.id} value={String(v.id)}>
-              <div className="space-y-5">
-                {[...v.meals]
-                  .sort((a, b) => a.order_index - b.order_index)
-                  .map((meal) => (
-                    <MealCard
-                      key={meal.id}
-                      meal={meal}
-                      draftChanges={draftChanges}
-                      onQuantityChange={handleQuantityChange}
-                    />
-                  ))}
+          {sortedVariations.map((v) => {
+            const varPro = v.total_protein;
+            const varCarb = v.total_carbs;
+            const varFat = v.total_fat;
 
-                {v.meals.length === 0 && (
-                  <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      <p className="text-muted-foreground mb-4">Nenhuma refeição nesta variação.</p>
-                      <Button variant="outline" onClick={() => setMealDialogOpen(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Adicionar Refeição
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </TabsContent>
-          ))}
+            return (
+              <TabsContent key={v.id} value={String(v.id)}>
+                <div className="space-y-5">
+                  {/* Variation g/kg summary */}
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border bg-muted/40 px-4 py-2.5 text-sm">
+                    <span className="font-medium text-muted-foreground mr-1">g/kg:</span>
+                    <span className="tabular-nums">
+                      <span className="text-red-500 font-medium">P</span>{" "}
+                      {latestWeight ? `${(varPro / latestWeight).toFixed(1)}` : "–"}
+                    </span>
+                    <span className="tabular-nums">
+                      <span className="text-blue-500 font-medium">C</span>{" "}
+                      {latestWeight ? `${(varCarb / latestWeight).toFixed(1)}` : "–"}
+                    </span>
+                    <span className="tabular-nums">
+                      <span className="text-yellow-500 font-medium">G</span>{" "}
+                      {latestWeight ? `${(varFat / latestWeight).toFixed(1)}` : "–"}
+                    </span>
+                    {latestWeight && (
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        ({latestWeight.toFixed(1)} kg)
+                      </span>
+                    )}
+                  </div>
+
+                  {[...v.meals]
+                    .sort((a, b) => a.order_index - b.order_index)
+                    .map((meal) => (
+                      <MealCard
+                        key={meal.id}
+                        meal={meal}
+                        draftChanges={draftChanges}
+                        onQuantityChange={handleQuantityChange}
+                      />
+                    ))}
+
+                  {v.meals.length === 0 && (
+                    <Card>
+                      <CardContent className="flex flex-col items-center justify-center py-12">
+                        <p className="text-muted-foreground mb-4">Nenhuma refeição nesta variação.</p>
+                        <Button variant="outline" onClick={() => setMealDialogOpen(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Adicionar Refeição
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+            );
+          })}
         </Tabs>
       )}
 
