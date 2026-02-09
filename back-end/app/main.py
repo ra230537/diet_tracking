@@ -82,6 +82,32 @@ async def lifespan(app: FastAPI):
             "ALTER TABLE diet_plans "
             "ADD COLUMN IF NOT EXISTS last_coach_w_prev FLOAT DEFAULT NULL"
         ))
+
+        # Migration: add variation_id column to meals table
+        await conn.execute(text(
+            "ALTER TABLE meals "
+            "ADD COLUMN IF NOT EXISTS variation_id INTEGER DEFAULT NULL "
+            "REFERENCES diet_variations(id) ON DELETE CASCADE"
+        ))
+
+        # Migration: create default variation for existing plans that don't have one
+        # and link orphan meals to it
+        existing_plans = await conn.execute(text(
+            "SELECT dp.id FROM diet_plans dp "
+            "WHERE NOT EXISTS (SELECT 1 FROM diet_variations dv WHERE dv.diet_plan_id = dp.id)"
+        ))
+        for row in existing_plans:
+            plan_id = row[0]
+            result = await conn.execute(text(
+                "INSERT INTO diet_variations (diet_plan_id, name, order_index) "
+                "VALUES (:plan_id, 'Principal', 0) RETURNING id"
+            ), {"plan_id": plan_id})
+            variation_id = result.scalar()
+            await conn.execute(text(
+                "UPDATE meals SET variation_id = :var_id "
+                "WHERE diet_plan_id = :plan_id AND variation_id IS NULL"
+            ), {"var_id": variation_id, "plan_id": plan_id})
+
         logger.info("✅ Schema migrations applied")
 
     yield  # Application is running — handle requests

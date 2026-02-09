@@ -125,6 +125,13 @@ class DietPlan(Base):
         Float, nullable=True, default=None
     )
 
+    # Relationship: a plan has many variations (e.g., "Principal", "Substituição")
+    variations: Mapped[list["DietVariation"]] = relationship(
+        "DietVariation", back_populates="diet_plan", lazy="selectin",
+        cascade="all, delete-orphan",
+        order_by="DietVariation.order_index",
+    )
+
     # Relationship: a plan has many meals (e.g., Breakfast, Lunch, Dinner)
     meals: Mapped[list["Meal"]] = relationship(
         "Meal", back_populates="diet_plan", lazy="selectin",
@@ -137,11 +144,55 @@ class DietPlan(Base):
 
 
 # ============================================================
-# MEAL — A named meal within a diet plan (e.g., "Breakfast")
+# DIET VARIATION — A named variation of a diet plan
+# ============================================================
+class DietVariation(Base):
+    """
+    A named variation within a DietPlan (e.g., "Principal", "Substituição").
+
+    All variations share the same macro targets from their parent DietPlan.
+    The idea is to allow multiple meal arrangements (e.g., a main diet
+    and an alternative day with food substitutions).
+
+    The order_index controls display order (0 = first / default variation).
+    """
+    __tablename__ = "diet_variations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Which diet plan this variation belongs to
+    diet_plan_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("diet_plans.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # Human-readable name like "Principal", "Dia de substituição"
+    name: Mapped[str] = mapped_column(String(255), nullable=False, default="Principal")
+
+    # Controls display order (0 = first / default variation)
+    order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    # Relationships
+    diet_plan: Mapped["DietPlan"] = relationship("DietPlan", back_populates="variations")
+    meals: Mapped[list["Meal"]] = relationship(
+        "Meal", back_populates="variation", lazy="selectin",
+        cascade="all, delete-orphan",
+        order_by="Meal.order_index",
+    )
+
+    def __repr__(self) -> str:
+        return f"<DietVariation(id={self.id}, name='{self.name}')>"
+
+
+# ============================================================
+# MEAL — A named meal within a diet variation (e.g., "Breakfast")
 # ============================================================
 class Meal(Base):
     """
-    A meal slot within a DietPlan (e.g., "Breakfast", "Pre-workout", "Dinner").
+    A meal slot within a DietVariation (e.g., "Breakfast", "Pre-workout", "Dinner").
     
     The order_index field controls the display order (0 = first meal of the day).
     Each meal contains multiple MealItems (the actual foods being eaten).
@@ -150,9 +201,14 @@ class Meal(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
-    # Which diet plan this meal belongs to
+    # Which diet plan this meal belongs to (kept for backward compatibility)
     diet_plan_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("diet_plans.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # Which variation this meal belongs to (nullable for migration of existing data)
+    variation_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("diet_variations.id", ondelete="CASCADE"), nullable=True
     )
 
     # Human-readable name like "Breakfast", "Lunch", "Pre-workout snack"
@@ -163,6 +219,7 @@ class Meal(Base):
 
     # Relationships
     diet_plan: Mapped["DietPlan"] = relationship("DietPlan", back_populates="meals")
+    variation: Mapped["DietVariation | None"] = relationship("DietVariation", back_populates="meals")
     items: Mapped[list["MealItem"]] = relationship(
         "MealItem", back_populates="meal", lazy="selectin",
         cascade="all, delete-orphan",

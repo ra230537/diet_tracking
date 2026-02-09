@@ -173,7 +173,48 @@ class MealResponse(BaseModel):
 
 
 # ============================================================
-# FULL DIET PLAN (Hierarchical: Plan -> Meals -> Items)
+# DIET VARIATION SCHEMAS
+# ============================================================
+
+class DietVariationCreate(BaseModel):
+    """Schema for creating a new diet variation."""
+    name: str = Field(
+        ..., min_length=1, max_length=255,
+        description="Variation name (e.g., 'Principal', 'Substituição')"
+    )
+    order_index: int = Field(
+        default=0, ge=0,
+        description="Display order (0 = first variation)"
+    )
+
+
+class DietVariationResponse(BaseModel):
+    """Schema for a diet variation with all its meals and calculated totals."""
+    id: int
+    name: str
+    order_index: int
+    created_at: datetime.datetime
+    meals: list[MealResponse] = []
+
+    # Variation-level totals (sum of all meals in this variation)
+    total_calories: float = 0.0
+    total_protein: float = 0.0
+    total_carbs: float = 0.0
+    total_fat: float = 0.0
+
+    model_config = {"from_attributes": True}
+
+
+class DietVariationRename(BaseModel):
+    """Schema for renaming an existing variation."""
+    name: str = Field(
+        ..., min_length=1, max_length=255,
+        description="New name for the variation"
+    )
+
+
+# ============================================================
+# FULL DIET PLAN (Hierarchical: Plan -> Variations -> Meals -> Items)
 # ============================================================
 
 class MacroComparison(BaseModel):
@@ -199,7 +240,7 @@ class DietPlanUpdate(BaseModel):
 class DietPlanFullResponse(BaseModel):
     """
     The complete diet plan hierarchy returned by GET /diet/current.
-    Includes: Plan info -> Meals -> Items, plus macro comparisons.
+    Includes: Plan info -> Variations -> Meals -> Items, plus macro comparisons.
     """
     id: int
     user_id: str
@@ -212,16 +253,19 @@ class DietPlanFullResponse(BaseModel):
     target_carbs: float = 0.0
     target_fat: float = 0.0
 
-    # All meals with their items
+    # All variations with their meals and items
+    variations: list[DietVariationResponse] = []
+
+    # All meals with their items (from the active/first variation for backward compat)
     meals: list[MealResponse] = []
 
-    # Grand totals across all meals
+    # Grand totals across all meals (from the first variation)
     total_calories: float = 0.0
     total_protein: float = 0.0
     total_carbs: float = 0.0
     total_fat: float = 0.0
 
-    # Comparison: target vs actual for each macro
+    # Comparison: target vs actual for each macro (from the first variation)
     calories_comparison: MacroComparison | None = None
     protein_comparison: MacroComparison | None = None
     carbs_comparison: MacroComparison | None = None

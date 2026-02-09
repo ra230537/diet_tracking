@@ -76,6 +76,23 @@ export interface MealResponse {
   total_fat: number;
 }
 
+export interface DietVariationResponse {
+  id: number;
+  name: string;
+  order_index: number;
+  created_at: string;
+  meals: MealResponse[];
+  total_calories: number;
+  total_protein: number;
+  total_carbs: number;
+  total_fat: number;
+}
+
+export interface DietVariationCreate {
+  name: string;
+  order_index: number;
+}
+
 export interface DietPlanFullResponse {
   id: number;
   user_id: string;
@@ -85,6 +102,7 @@ export interface DietPlanFullResponse {
   target_fat: number;
   is_active: boolean;
   created_at: string;
+  variations: DietVariationResponse[];
   meals: MealResponse[];
   total_calories: number;
   total_protein: number;

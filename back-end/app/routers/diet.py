@@ -1,32 +1,45 @@
 """
 Diet Plan Router
 =================
-Endpoints for managing diet plans, meals, and meal items.
+Endpoints for managing diet plans, variations, meals, and meal items.
 
 Endpoints:
-  POST   /diet/plans              - Create a new diet plan
-  GET    /diet/current            - Get the full current diet plan with calculated macros
-  POST   /diet/plans/{id}/meals   - Add a meal to a plan
-  PATCH  /diet/meals/{id}         - Rename a meal
-  DELETE /diet/meals/{id}         - Delete a meal and all its items
-  POST   /diet/meals/{id}/add_item - Add a food item to a meal
-  DELETE /diet/meal-items/{id}    - Remove a food item from a meal
+  POST   /diet/plans                          - Create a new diet plan
+  GET    /diet/current                        - Get the full current diet plan with calculated macros
+  PUT    /diet/plans/{id}/targets             - Update diet plan macro targets
+  POST   /diet/plans/{id}/variations          - Create a new variation (empty or duplicated)
+  PATCH  /diet/variations/{id}                - Rename a variation
+  DELETE /diet/variations/{id}                - Delete a variation and all its meals
+  POST   /diet/variations/{id}/meals          - Add a meal to a variation
+  POST   /diet/plans/{id}/meals               - Add a meal to a plan (backward compat)
+  PATCH  /diet/meals/{id}                     - Rename a meal
+  DELETE /diet/meals/{id}                     - Delete a meal and all its items
+  POST   /diet/meals/{id}/add_item            - Add a food item to a meal
+  PUT    /diet/meal-items/{id}                - Update meal item quantity
+  DELETE /diet/meal-items/{id}                - Remove a food item from a meal
+  GET    /diet/export/excel                   - Export diet as Excel
+  GET    /diet/export/pdf                     - Export diet as PDF
 """
 
+import io
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.models import DietPlan, FoodItem, Meal, MealItem
+from app.models import DietPlan, DietVariation, FoodItem, Meal, MealItem
 from app.schemas import (
     DietPlanCreate,
     DietPlanFullResponse,
     DietPlanResponse,
     DietPlanUpdate,
+    DietVariationCreate,
+    DietVariationRename,
+    DietVariationResponse,
     MealCreate,
     MealItemCreate,
     MealItemResponse,
@@ -78,6 +91,16 @@ async def create_diet_plan(
     # Create the new plan
     db_plan = DietPlan(**plan.model_dump())
     db.add(db_plan)
+    await db.flush()  # Get the plan ID
+
+    # Automatically create a default "Principal" variation
+    default_variation = DietVariation(
+        diet_plan_id=db_plan.id,
+        name="Principal",
+        order_index=0,
+    )
+    db.add(default_variation)
+
     await db.commit()
     await db.refresh(db_plan)
 
@@ -113,6 +136,282 @@ async def get_current_diet(
         raise HTTPException(status_code=404, detail=str(e))
 
 
+# ============================================================
+# VARIATION ENDPOINTS
+# ============================================================
+
+@router.post("/plans/{plan_id}/variations", response_model=DietVariationResponse, status_code=201)
+async def create_variation(
+    plan_id: int,
+    variation: DietVariationCreate,
+    duplicate_from: int | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create a new variation for a diet plan.
+
+    Options:
+      - Create from scratch: just provide name and order_index
+      - Duplicate from existing: pass ?duplicate_from=<variation_id> to copy all meals and items
+
+    Example (from scratch):
+      POST /diet/plans/1/variations
+      { "name": "Substituição", "order_index": 1 }
+
+    Example (duplicate):
+      POST /diet/plans/1/variations?duplicate_from=5
+      { "name": "Substituição (cópia)", "order_index": 1 }
+    """
+    # Verify the plan exists
+    stmt = select(DietPlan).where(DietPlan.id == plan_id)
+    result = await db.execute(stmt)
+    plan = result.scalar_one_or_none()
+
+    if not plan:
+        raise HTTPException(status_code=404, detail=f"Diet plan with ID {plan_id} not found.")
+
+    # Create the variation
+    db_variation = DietVariation(
+        diet_plan_id=plan_id,
+        name=variation.name,
+        order_index=variation.order_index,
+    )
+    db.add(db_variation)
+    await db.flush()  # Get the ID without committing
+
+    meals_data: list[dict] = []
+
+    # If duplicating from an existing variation
+    if duplicate_from is not None:
+        source_stmt = (
+            select(DietVariation)
+            .where(DietVariation.id == duplicate_from)
+            .where(DietVariation.diet_plan_id == plan_id)
+            .options(
+                selectinload(DietVariation.meals)
+                .selectinload(Meal.items)
+                .selectinload(MealItem.food_item)
+            )
+        )
+        source_result = await db.execute(source_stmt)
+        source_variation = source_result.scalar_one_or_none()
+
+        if not source_variation:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Source variation with ID {duplicate_from} not found in plan {plan_id}."
+            )
+
+        # Copy meals and items
+        for source_meal in source_variation.meals:
+            new_meal = Meal(
+                diet_plan_id=plan_id,
+                variation_id=db_variation.id,
+                name=source_meal.name,
+                order_index=source_meal.order_index,
+            )
+            db.add(new_meal)
+            await db.flush()
+
+            items_data = []
+            meal_total_cal = meal_total_pro = meal_total_carb = meal_total_fat = 0.0
+
+            for source_item in source_meal.items:
+                new_item = MealItem(
+                    meal_id=new_meal.id,
+                    food_item_id=source_item.food_item_id,
+                    quantity_grams=source_item.quantity_grams,
+                )
+                db.add(new_item)
+                await db.flush()
+
+                qty_factor = source_item.quantity_grams / 100
+                cal = round(qty_factor * source_item.food_item.calories_kcal, 2)
+                pro = round(qty_factor * source_item.food_item.protein_g, 2)
+                carb = round(qty_factor * source_item.food_item.carbs_g, 2)
+                fat = round(qty_factor * source_item.food_item.fat_g, 2)
+
+                meal_total_cal += cal
+                meal_total_pro += pro
+                meal_total_carb += carb
+                meal_total_fat += fat
+
+                items_data.append(MealItemResponse(
+                    id=new_item.id,
+                    food_item_id=source_item.food_item_id,
+                    food_item_name=source_item.food_item.name,
+                    quantity_grams=source_item.quantity_grams,
+                    calculated_calories=cal,
+                    calculated_protein=pro,
+                    calculated_carbs=carb,
+                    calculated_fat=fat,
+                ))
+
+            meals_data.append({
+                "id": new_meal.id,
+                "name": new_meal.name,
+                "order_index": new_meal.order_index,
+                "items": items_data,
+                "total_calories": round(meal_total_cal, 2),
+                "total_protein": round(meal_total_pro, 2),
+                "total_carbs": round(meal_total_carb, 2),
+                "total_fat": round(meal_total_fat, 2),
+            })
+
+    await db.commit()
+    await db.refresh(db_variation)
+
+    logger.info(f"Created variation '{db_variation.name}' for plan ID {plan_id}"
+                f"{' (duplicated from ' + str(duplicate_from) + ')' if duplicate_from else ''}")
+
+    # Build response
+    variation_total_cal = sum(m.get("total_calories", 0) for m in meals_data)
+    variation_total_pro = sum(m.get("total_protein", 0) for m in meals_data)
+    variation_total_carb = sum(m.get("total_carbs", 0) for m in meals_data)
+    variation_total_fat = sum(m.get("total_fat", 0) for m in meals_data)
+
+    return DietVariationResponse(
+        id=db_variation.id,
+        name=db_variation.name,
+        order_index=db_variation.order_index,
+        created_at=db_variation.created_at,
+        meals=[MealResponse(**m) if isinstance(m, dict) else m for m in meals_data],
+        total_calories=round(variation_total_cal, 2),
+        total_protein=round(variation_total_pro, 2),
+        total_carbs=round(variation_total_carb, 2),
+        total_fat=round(variation_total_fat, 2),
+    )
+
+
+@router.patch("/variations/{variation_id}", response_model=DietVariationResponse)
+async def rename_variation(
+    variation_id: int,
+    payload: DietVariationRename,
+    user_id: str = "default_user",
+    db: AsyncSession = Depends(get_db),
+):
+    """Rename an existing variation."""
+    stmt = (
+        select(DietVariation)
+        .where(DietVariation.id == variation_id)
+        .options(
+            selectinload(DietVariation.diet_plan),
+            selectinload(DietVariation.meals)
+            .selectinload(Meal.items)
+            .selectinload(MealItem.food_item),
+        )
+    )
+    result = await db.execute(stmt)
+    variation = result.scalar_one_or_none()
+
+    if not variation:
+        raise HTTPException(status_code=404, detail=f"Variation with ID {variation_id} not found.")
+
+    if variation.diet_plan.user_id != user_id:
+        raise HTTPException(status_code=403, detail="This variation does not belong to your diet plan.")
+
+    old_name = variation.name
+    variation.name = payload.name
+    await db.commit()
+    await db.refresh(variation)
+
+    logger.info(f"Renamed variation ID {variation_id} from '{old_name}' to '{payload.name}'")
+
+    # Build response with calculated totals
+    from app.services.diet_calculator import _build_variation_data
+    var_data = _build_variation_data(variation)
+
+    return DietVariationResponse(**var_data)
+
+
+@router.delete("/variations/{variation_id}", response_model=MessageResponse)
+async def delete_variation(
+    variation_id: int,
+    user_id: str = "default_user",
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a variation and all its meals/items. Cannot delete the last variation."""
+    stmt = (
+        select(DietVariation)
+        .where(DietVariation.id == variation_id)
+        .options(selectinload(DietVariation.diet_plan).selectinload(DietPlan.variations))
+    )
+    result = await db.execute(stmt)
+    variation = result.scalar_one_or_none()
+
+    if not variation:
+        raise HTTPException(status_code=404, detail=f"Variation with ID {variation_id} not found.")
+
+    if variation.diet_plan.user_id != user_id:
+        raise HTTPException(status_code=403, detail="This variation does not belong to your diet plan.")
+
+    # Don't allow deleting the last variation
+    if len(variation.diet_plan.variations) <= 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete the only remaining variation. A plan must have at least one variation."
+        )
+
+    var_name = variation.name
+    await db.delete(variation)
+    await db.commit()
+
+    logger.info(f"Deleted variation '{var_name}' (ID {variation_id}) and all its meals")
+
+    return MessageResponse(
+        message="Variação excluída com sucesso.",
+        detail=f"Variação '{var_name}' (ID {variation_id}) e todas as refeições associadas foram removidas."
+    )
+
+
+@router.post("/variations/{variation_id}/meals", response_model=MealResponse, status_code=201)
+async def add_meal_to_variation(
+    variation_id: int,
+    meal: MealCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Add a new meal to a specific variation.
+    """
+    stmt = (
+        select(DietVariation)
+        .where(DietVariation.id == variation_id)
+        .options(selectinload(DietVariation.meals))
+    )
+    result = await db.execute(stmt)
+    variation = result.scalar_one_or_none()
+
+    if not variation:
+        raise HTTPException(status_code=404, detail=f"Variation with ID {variation_id} not found.")
+
+    db_meal = Meal(
+        diet_plan_id=variation.diet_plan_id,
+        variation_id=variation_id,
+        name=meal.name,
+        order_index=meal.order_index,
+    )
+    db.add(db_meal)
+    await db.commit()
+    await db.refresh(db_meal)
+
+    logger.info(f"Added meal '{db_meal.name}' to variation ID {variation_id}")
+
+    return MealResponse(
+        id=db_meal.id,
+        name=db_meal.name,
+        order_index=db_meal.order_index,
+        items=[],
+        total_calories=0.0,
+        total_protein=0.0,
+        total_carbs=0.0,
+        total_fat=0.0,
+    )
+
+
+# ============================================================
+# BACKWARD-COMPATIBLE MEAL ENDPOINTS
+# ============================================================
+
 @router.post("/plans/{plan_id}/meals", response_model=MealResponse, status_code=201)
 async def add_meal_to_plan(
     plan_id: int,
@@ -121,16 +420,17 @@ async def add_meal_to_plan(
 ):
     """
     Add a new meal to an existing diet plan.
+    If the plan has variations, the meal is added to the first variation.
     
     Meals represent eating occasions during the day (e.g., "Breakfast",
     "Post-workout shake", "Dinner"). The order_index controls display order.
-    
-    Example:
-      POST /diet/plans/1/meals
-      { "name": "Breakfast", "order_index": 0 }
     """
-    # Verify the plan exists
-    stmt = select(DietPlan).where(DietPlan.id == plan_id)
+    # Verify the plan exists with its variations
+    stmt = (
+        select(DietPlan)
+        .where(DietPlan.id == plan_id)
+        .options(selectinload(DietPlan.variations))
+    )
     result = await db.execute(stmt)
     plan = result.scalar_one_or_none()
 
@@ -140,9 +440,16 @@ async def add_meal_to_plan(
             detail=f"Diet plan with ID {plan_id} not found."
         )
 
+    # Get the first variation (or None)
+    variation_id = None
+    if plan.variations:
+        first_variation = sorted(plan.variations, key=lambda v: v.order_index)[0]
+        variation_id = first_variation.id
+
     # Create the meal
     db_meal = Meal(
         diet_plan_id=plan_id,
+        variation_id=variation_id,
         name=meal.name,
         order_index=meal.order_index,
     )
@@ -468,4 +775,317 @@ async def remove_meal_item(
     return MessageResponse(
         message="Meal item removed successfully.",
         detail=f"Removed item ID {item_id} from meal."
+    )
+
+
+# ============================================================
+# EXPORT ENDPOINTS (Excel & PDF)
+# ============================================================
+
+@router.get("/export/excel")
+async def export_diet_excel(
+    user_id: str = "default_user",
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Export the current diet plan (all variations) as an Excel file.
+    Each variation gets its own sheet.
+    """
+    try:
+        plan_data = await get_current_diet_full(db, user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    wb = openpyxl.Workbook()
+    # Remove the default sheet
+    wb.remove(wb.active)
+
+    # Styles
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
+    meal_font = Font(bold=True, size=11)
+    meal_fill = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid")
+    total_font = Font(bold=True, size=11)
+    total_fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
+    target_fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
+    thin_border = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
+    )
+
+    variations = plan_data.get("variations", [])
+    if not variations:
+        # Fallback: build a single sheet from plan.meals
+        variations = [{
+            "name": "Principal",
+            "meals": plan_data.get("meals", []),
+        }]
+
+    for var in variations:
+        sheet_name = var["name"][:31]  # Excel sheet name max 31 chars
+        ws = wb.create_sheet(title=sheet_name)
+
+        # Column widths
+        ws.column_dimensions["A"].width = 30
+        ws.column_dimensions["B"].width = 14
+        ws.column_dimensions["C"].width = 14
+        ws.column_dimensions["D"].width = 14
+        ws.column_dimensions["E"].width = 14
+        ws.column_dimensions["F"].width = 14
+
+        # Header row
+        headers = ["Alimento", "Qtd (g)", "Calorias", "Proteína (g)", "Carboidratos (g)", "Gordura (g)"]
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
+            cell.border = thin_border
+
+        row = 2
+        grand_cal = grand_pro = grand_carb = grand_fat = 0.0
+
+        for meal in var.get("meals", []):
+            # Meal name row
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=6)
+            cell = ws.cell(row=row, column=1, value=meal["name"])
+            cell.font = meal_font
+            cell.fill = meal_fill
+            cell.border = thin_border
+            row += 1
+
+            meal_cal = meal_pro = meal_carb = meal_fat = 0.0
+
+            for item in meal.get("items", []):
+                ws.cell(row=row, column=1, value=item["food_item_name"]).border = thin_border
+                ws.cell(row=row, column=2, value=item["quantity_grams"]).border = thin_border
+                ws.cell(row=row, column=3, value=item["calculated_calories"]).border = thin_border
+                ws.cell(row=row, column=4, value=item["calculated_protein"]).border = thin_border
+                ws.cell(row=row, column=5, value=item["calculated_carbs"]).border = thin_border
+                ws.cell(row=row, column=6, value=item["calculated_fat"]).border = thin_border
+
+                for col in range(2, 7):
+                    ws.cell(row=row, column=col).alignment = Alignment(horizontal="center")
+                    ws.cell(row=row, column=col).number_format = "0.0"
+
+                meal_cal += item["calculated_calories"]
+                meal_pro += item["calculated_protein"]
+                meal_carb += item["calculated_carbs"]
+                meal_fat += item["calculated_fat"]
+                row += 1
+
+            # Meal subtotal
+            ws.cell(row=row, column=1, value=f"Subtotal {meal['name']}").font = Font(bold=True, italic=True)
+            ws.cell(row=row, column=3, value=round(meal_cal, 1)).font = Font(bold=True, italic=True)
+            ws.cell(row=row, column=4, value=round(meal_pro, 1)).font = Font(bold=True, italic=True)
+            ws.cell(row=row, column=5, value=round(meal_carb, 1)).font = Font(bold=True, italic=True)
+            ws.cell(row=row, column=6, value=round(meal_fat, 1)).font = Font(bold=True, italic=True)
+            for col in range(1, 7):
+                ws.cell(row=row, column=col).border = thin_border
+                if col >= 2:
+                    ws.cell(row=row, column=col).alignment = Alignment(horizontal="center")
+                    ws.cell(row=row, column=col).number_format = "0.0"
+            row += 1
+
+            grand_cal += meal_cal
+            grand_pro += meal_pro
+            grand_carb += meal_carb
+            grand_fat += meal_fat
+
+        # Grand total row
+        row += 1
+        for col_idx, value in enumerate(["TOTAL DO DIA", "", round(grand_cal, 1), round(grand_pro, 1), round(grand_carb, 1), round(grand_fat, 1)], 1):
+            cell = ws.cell(row=row, column=col_idx, value=value)
+            cell.font = total_font
+            cell.fill = total_fill
+            cell.border = thin_border
+            if col_idx >= 2:
+                cell.alignment = Alignment(horizontal="center")
+                cell.number_format = "0.0"
+
+        # Targets row
+        row += 1
+        targets = [
+            "META",
+            "",
+            plan_data.get("target_calories", 0),
+            plan_data.get("target_protein", 0),
+            plan_data.get("target_carbs", 0),
+            plan_data.get("target_fat", 0),
+        ]
+        for col_idx, value in enumerate(targets, 1):
+            cell = ws.cell(row=row, column=col_idx, value=value)
+            cell.font = total_font
+            cell.fill = target_fill
+            cell.border = thin_border
+            if col_idx >= 2:
+                cell.alignment = Alignment(horizontal="center")
+                cell.number_format = "0.0"
+
+    # Save to buffer
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=plano_alimentar.xlsx"},
+    )
+
+
+@router.get("/export/pdf")
+async def export_diet_pdf(
+    user_id: str = "default_user",
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Export the current diet plan (all variations) as a PDF file.
+    """
+    try:
+        plan_data = await get_current_diet_full(db, user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Table as RLTable, TableStyle, Paragraph, Spacer
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=15 * mm,
+        leftMargin=15 * mm,
+        topMargin=15 * mm,
+        bottomMargin=15 * mm,
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "CustomTitle",
+        parent=styles["Title"],
+        fontSize=16,
+        spaceAfter=6,
+    )
+    subtitle_style = ParagraphStyle(
+        "CustomSubtitle",
+        parent=styles["Heading2"],
+        fontSize=12,
+        spaceAfter=4,
+        textColor=colors.HexColor("#2563EB"),
+    )
+    variation_style = ParagraphStyle(
+        "VariationTitle",
+        parent=styles["Heading2"],
+        fontSize=14,
+        spaceBefore=12,
+        spaceAfter=6,
+        textColor=colors.HexColor("#1E40AF"),
+    )
+
+    elements = []
+
+    # Title
+    elements.append(Paragraph("Plano Alimentar", title_style))
+    elements.append(Spacer(1, 3 * mm))
+
+    # Targets summary
+    target_data = [
+        ["Meta", "Calorias", "Proteína (g)", "Carboidratos (g)", "Gordura (g)"],
+        [
+            "Diário",
+            f"{plan_data.get('target_calories', 0):.0f}",
+            f"{plan_data.get('target_protein', 0):.1f}",
+            f"{plan_data.get('target_carbs', 0):.1f}",
+            f"{plan_data.get('target_fat', 0):.1f}",
+        ],
+    ]
+    target_table = RLTable(target_data, colWidths=[80, 80, 90, 100, 80])
+    target_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2563EB")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#D1FAE5")),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(target_table)
+    elements.append(Spacer(1, 6 * mm))
+
+    variations = plan_data.get("variations", [])
+    if not variations:
+        variations = [{"name": "Principal", "meals": plan_data.get("meals", [])}]
+
+    for var in variations:
+        elements.append(Paragraph(f"📋 {var['name']}", variation_style))
+
+        for meal in var.get("meals", []):
+            elements.append(Paragraph(meal["name"], subtitle_style))
+
+            table_data = [["Alimento", "Qtd (g)", "Kcal", "P (g)", "C (g)", "G (g)"]]
+            meal_cal = meal_pro = meal_carb = meal_fat = 0.0
+
+            for item in meal.get("items", []):
+                table_data.append([
+                    item["food_item_name"],
+                    f"{item['quantity_grams']:.0f}",
+                    f"{item['calculated_calories']:.1f}",
+                    f"{item['calculated_protein']:.1f}",
+                    f"{item['calculated_carbs']:.1f}",
+                    f"{item['calculated_fat']:.1f}",
+                ])
+                meal_cal += item["calculated_calories"]
+                meal_pro += item["calculated_protein"]
+                meal_carb += item["calculated_carbs"]
+                meal_fat += item["calculated_fat"]
+
+            # Subtotal row
+            table_data.append([
+                "Subtotal",
+                "",
+                f"{meal_cal:.1f}",
+                f"{meal_pro:.1f}",
+                f"{meal_carb:.1f}",
+                f"{meal_fat:.1f}",
+            ])
+
+            col_widths = [150, 60, 60, 60, 60, 60]
+            table = RLTable(table_data, colWidths=col_widths)
+            table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#DBEAFE")),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                # Subtotal row styling
+                ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#FEF3C7")),
+                ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ]))
+            elements.append(table)
+            elements.append(Spacer(1, 3 * mm))
+
+        elements.append(Spacer(1, 4 * mm))
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=plano_alimentar.pdf"},
     )

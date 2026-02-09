@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/axios";
 import type {
   DietPlanFullResponse,
+  DietVariationCreate,
+  DietVariationResponse,
   MealCreate,
   MealResponse,
   MealItemCreate,
@@ -143,4 +145,107 @@ export function useDeleteMeal() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
   });
+}
+
+// ============================================================
+// VARIATION HOOKS
+// ============================================================
+
+export function useCreateVariation() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    DietVariationResponse,
+    Error,
+    { planId: number; variation: DietVariationCreate; duplicateFrom?: number }
+  >({
+    mutationFn: async ({ planId, variation, duplicateFrom }) => {
+      const params = duplicateFrom != null ? { duplicate_from: duplicateFrom } : {};
+      const { data } = await api.post(`/diet/plans/${planId}/variations`, variation, { params });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["diet-current"] });
+    },
+  });
+}
+
+export function useRenameVariation() {
+  const queryClient = useQueryClient();
+
+  return useMutation<DietVariationResponse, Error, { variationId: number; name: string }>({
+    mutationFn: async ({ variationId, name }) => {
+      const { data } = await api.patch(`/diet/variations/${variationId}`, { name });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["diet-current"] });
+    },
+  });
+}
+
+export function useDeleteVariation() {
+  const queryClient = useQueryClient();
+
+  return useMutation<MessageResponse, Error, number>({
+    mutationFn: async (variationId) => {
+      const { data } = await api.delete(`/diet/variations/${variationId}`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["diet-current"] });
+    },
+  });
+}
+
+export function useAddMealToVariation() {
+  const queryClient = useQueryClient();
+
+  return useMutation<MealResponse, Error, { variationId: number; meal: MealCreate }>({
+    mutationFn: async ({ variationId, meal }) => {
+      const { data } = await api.post(`/diet/variations/${variationId}/meals`, meal);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["diet-current"] });
+    },
+  });
+}
+
+// ============================================================
+// EXPORT HOOKS
+// ============================================================
+
+export function useExportDietExcel() {
+  return async (userId = "default_user") => {
+    const response = await api.get("/diet/export/excel", {
+      params: { user_id: userId },
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "plano_alimentar.xlsx");
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+}
+
+export function useExportDietPdf() {
+  return async (userId = "default_user") => {
+    const response = await api.get("/diet/export/pdf", {
+      params: { user_id: userId },
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "plano_alimentar.pdf");
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
 }
